@@ -17,7 +17,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/contributions", label: "Contributions" },
   { href: "/shares", label: "Shares" },
   { href: "/ledger", label: "Ledger" },
+  { href: "/loans", label: "Loans" },
+  { href: "/payouts", label: "Payouts" },
   { href: "/payments", label: "Payments" },
+  { href: "/audit", label: "Audit log" },
   { href: "/profile", label: "Profile" },
 ];
 

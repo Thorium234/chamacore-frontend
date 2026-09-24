@@ -92,6 +92,20 @@ export interface RegistrationFeeOut {
   updated_at: string;
 }
 
+export type RegistrationFeePaymentStatus = "CONFIRMED" | "REVERSED";
+
+export interface RegistrationFeePaymentOut {
+  id: string;
+  fee_id: string;
+  amount: string;
+  status: RegistrationFeePaymentStatus;
+  recorded_by_user_id: string;
+  paid_at: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MembershipOut {
   id: string;
   chama_id: string;
@@ -348,4 +362,125 @@ export interface C2BRegisterUrlOut {
   response_description: string;
   validation_url: string;
   confirmation_url: string;
+}
+
+// ---- Loans ----
+
+export type LoanStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "DISBURSED"
+  | "PARTIALLY_REPAID"
+  | "REPAID"
+  | "REJECTED"
+  | "CANCELLED";
+
+export interface LoanApplyPayload {
+  principal: string;
+  term_months: number;
+  note?: string | null;
+}
+
+export interface LoanOut {
+  id: string;
+  chama_id: string;
+  membership_id: string;
+  principal: string;
+  interest_rate: string;
+  term_months: number;
+  total_interest: string;
+  total_expected_repayment: string;
+  outstanding_principal: string;
+  outstanding_interest: string;
+  status: LoanStatus;
+  is_overdue: boolean;
+  application_date: string;
+  approval_date: string | null;
+  disbursement_date: string | null;
+  maturity_date: string | null;
+  approved_by_user_id: string | null;
+  disbursed_by_user_id: string | null;
+  recorded_by_user_id: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LoanRepaymentStatus = "CONFIRMED" | "REVERSED";
+
+export interface LoanRepaymentCreatePayload {
+  amount: string;
+  note?: string | null;
+}
+
+export interface LoanRepaymentOut {
+  id: string;
+  loan_id: string;
+  amount: string;
+  principal_portion: string;
+  interest_portion: string;
+  status: LoanRepaymentStatus;
+  recorded_by_user_id: string;
+  recorded_at: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Payouts ----
+
+export type PayoutStatus =
+  | "REQUESTED"
+  | "APPROVED"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "REJECTED"
+  | "FAILED"
+  | "REVERSED";
+
+export interface PayoutRequestPayload {
+  amount: string;
+  note?: string | null;
+}
+
+export interface PayoutFailPayload {
+  failure_reason: string;
+}
+
+export interface PayoutOut {
+  id: string;
+  chama_id: string;
+  membership_id: string;
+  amount: string;
+  status: PayoutStatus;
+  requested_by_user_id: string;
+  approved_by_user_id: string | null;
+  processed_by_user_id: string | null;
+  completed_by_user_id: string | null;
+  failure_reason: string | null;
+  requested_at: string;
+  approved_at: string | null;
+  processed_at: string | null;
+  completed_at: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Audit ----
+
+export interface AuditEventOut {
+  id: string;
+  chama_id: string | null;
+  actor_user_id: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  request_id: string | null;
+  payload: Record<string, unknown> | null;
+  success: boolean;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
 }

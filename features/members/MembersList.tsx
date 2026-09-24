@@ -12,7 +12,11 @@ import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { useMutation, useQuery } from "@/lib/query/hooks";
 import { assignRole, listRoles, removeRole } from "@/lib/api/roles";
 import { listMemberships, updateMembershipStatus } from "@/lib/api/memberships";
-import { waiveRegistrationFee } from "@/lib/api/registration-fees";
+import {
+  payRegistrationFee,
+  reverseRegistrationFeePayment,
+  waiveRegistrationFee,
+} from "@/lib/api/registration-fees";
 import { formatDate, formatMoney } from "@/lib/format";
 import { toApiError, getErrorMessage } from "@/lib/api/errors";
 import type { MembershipOut } from "@/types/api";
@@ -22,13 +26,16 @@ const LEADERSHIP_ROLES = ["TREASURER", "SECRETARY"];
 type ConfirmAction =
   | { type: "status"; membership: MembershipOut; next: "ACTIVE" | "INACTIVE" }
   | { type: "waive"; membership: MembershipOut }
+  | { type: "pay-fee"; membership: MembershipOut }
+  | { type: "reverse-fee"; membership: MembershipOut }
   | { type: "remove-role"; membership: MembershipOut; role: "TREASURER" | "SECRETARY" }
   | null;
 
 export function MembersList() {
   const { activeChamaId } = useChama();
-  const { isChair, isLeadership } = useMemberRoles(activeChamaId);
+  const { roles, isChair, isLeadership } = useMemberRoles(activeChamaId);
   const chamaId = activeChamaId;
+  const canPayFee = isChair || roles.includes("TREASURER");
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +75,22 @@ export function MembersList() {
     { invalidates: invalidations }
   );
 
+  const payFeeMutation = useMutation(
+    async () => {
+      if (!chamaId || !confirmAction || confirmAction.type !== "pay-fee") return;
+      return payRegistrationFee(chamaId, confirmAction.membership.id);
+    },
+    { invalidates: invalidations }
+  );
+
+  const reverseFeeMutation = useMutation(
+    async () => {
+      if (!chamaId || !confirmAction || confirmAction.type !== "reverse-fee") return;
+      return reverseRegistrationFeePayment(chamaId, confirmAction.membership.id);
+    },
+    { invalidates: invalidations }
+  );
+
   const removeRoleMutation = useMutation(
     async () => {
       if (!chamaId || !confirmAction || confirmAction.type !== "remove-role") return;
@@ -90,15 +113,27 @@ export function MembersList() {
     let result;
     if (confirmAction.type === "status") result = await statusMutation.mutate();
     else if (confirmAction.type === "waive") result = await waiveMutation.mutate();
+    else if (confirmAction.type === "pay-fee") result = await payFeeMutation.mutate();
+    else if (confirmAction.type === "reverse-fee") result = await reverseFeeMutation.mutate();
     else if (confirmAction.type === "remove-role") result = await removeRoleMutation.mutate();
     if (result) setConfirmAction(null);
     else {
-      const err = statusMutation.error ?? waiveMutation.error ?? removeRoleMutation.error;
+      const err =
+        statusMutation.error ??
+        waiveMutation.error ??
+        payFeeMutation.error ??
+        reverseFeeMutation.error ??
+        removeRoleMutation.error;
       if (err) setError(getErrorMessage(toApiError(err)));
     }
   }
 
-  const pending = statusMutation.isPending || waiveMutation.isPending || removeRoleMutation.isPending;
+  const pending =
+    statusMutation.isPending ||
+    waiveMutation.isPending ||
+    payFeeMutation.isPending ||
+    reverseFeeMutation.isPending ||
+    removeRoleMutation.isPending;
 
   const assignableLeadership = (availableRoles.data ?? [])
     .map((role) => role.name)
@@ -129,7 +164,7 @@ export function MembersList() {
             "No.",
             "Status",
             "Roles",
-            isChair ? "Registration fee" : "Joined",
+            isLeadership ? "Registration fee" : "Joined",
             isChair ? "Actions" : "",
           ]}
         >
@@ -201,19 +236,37 @@ export function MembersList() {
                     ) : null}
                   </div>
                 </Td>
-                {isChair ? (
+                {isLeadership ? (
                   <Td>
                     {fee ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm text-zinc-600">{formatMoney(fee.amount)}</span>
                         <StatusBadge status={fee.status} />
-                        {fee.status === "OWED" ? (
+                        {fee.status === "OWED" && canPayFee ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setConfirmAction({ type: "pay-fee", membership })}
+                          >
+                            Pay
+                          </Button>
+                        ) : null}
+                        {fee.status === "OWED" && isChair ? (
                           <Button
                             size="sm"
                             variant="secondary"
                             onClick={() => setConfirmAction({ type: "waive", membership })}
                           >
                             Waive
+                          </Button>
+                        ) : null}
+                        {fee.status === "PAID" && isChair ? (
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => setConfirmAction({ type: "reverse-fee", membership })}
+                          >
+                            Reverse
                           </Button>
                         ) : null}
                       </div>
@@ -269,7 +322,11 @@ export function MembersList() {
               : "Activate this member?"
             : confirmAction?.type === "waive"
               ? "Waive this registration fee?"
-              : "Remove this role?"
+              : confirmAction?.type === "pay-fee"
+                ? "Receive this registration fee?"
+                : confirmAction?.type === "reverse-fee"
+                  ? "Reverse this registration fee payment?"
+                  : "Remove this role?"
         }
         description={
           confirmAction?.type === "status"
@@ -278,9 +335,13 @@ export function MembersList() {
               : "The member will regain access to this Chama."
             : confirmAction?.type === "waive"
               ? `The fee of ${formatMoney(confirmAction.membership.registration_fee?.amount ?? "0")} will be marked as waived and can be changed later only by the chairperson.`
-              : confirmAction
-                ? `Remove the ${confirmAction.role} role from this member.`
-                : ""
+              : confirmAction?.type === "pay-fee"
+                ? `Confirm ${formatMoney(confirmAction.membership.registration_fee?.amount ?? "0")} has been received and mark it PAID. This also posts a ledger transaction and is safe to retry.`
+                : confirmAction?.type === "reverse-fee"
+                  ? "The paid fee will return to OWED and the fee payment will be marked REVERSED."
+                  : confirmAction
+                    ? `Remove the ${confirmAction.role} role from this member.`
+                    : ""
         }
         confirmLabel={
           confirmAction?.type === "status"
@@ -289,9 +350,17 @@ export function MembersList() {
               : "Activate"
             : confirmAction?.type === "waive"
               ? "Waive fee"
-              : "Remove role"
+              : confirmAction?.type === "pay-fee"
+                ? "Mark as paid"
+                : confirmAction?.type === "reverse-fee"
+                  ? "Reverse payment"
+                  : "Remove role"
         }
-        tone={confirmAction?.type === "remove-role" ? "danger" : "primary"}
+        tone={
+          confirmAction?.type === "remove-role" || confirmAction?.type === "reverse-fee"
+            ? "danger"
+            : "primary"
+        }
         isPending={pending}
         error={error}
         onConfirm={confirm}
