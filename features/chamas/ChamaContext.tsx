@@ -6,13 +6,18 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { useSession } from "@/features/auth/session";
 import { getChama } from "@/lib/api/chamas";
-import { invalidateChamaScope } from "@/lib/query/cache";
+import {
+  invalidateChamaScope,
+  refetchEntry,
+  seedEntry,
+} from "@/lib/query/cache";
 import { useQuery } from "@/lib/query/hooks";
 import type { ApiError } from "@/lib/api/errors";
 import type { ChamaOut } from "@/types/api";
@@ -64,6 +69,7 @@ interface ChamaContextValue {
   chamaError: ApiError | null;
   knownChamaIds: string[];
   setActiveChama: (chamaId: string) => void;
+  seedActiveChama: (chama: ChamaOut) => void;
   rememberChama: (chamaId: string) => void;
   clearActiveChama: () => void;
 }
@@ -120,6 +126,31 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
     [activeChamaId, rememberChama]
   );
 
+  const seededChamaRef = useRef<string | null>(null);
+
+  const seedActiveChama = useCallback(
+    (chama: ChamaOut) => {
+      // Optimistically seed the shell with the create response so it does not
+      // block on a GET; a background re-check runs once the query subscribes.
+      seedEntry(`${chama.id}:chama`, chama);
+      seededChamaRef.current = chama.id;
+      const previous = activeChamaId;
+      if (previous && previous !== chama.id) {
+        invalidateChamaScope(previous);
+      }
+      setActiveChamaId(chama.id);
+      writeStored(ACTIVE_CHAMA_KEY, chama.id);
+      rememberChama(chama.id);
+    },
+    [activeChamaId, rememberChama]
+  );
+
+  useEffect(() => {
+    if (!activeChamaId || seededChamaRef.current !== activeChamaId) return;
+    seededChamaRef.current = null;
+    refetchEntry(`${activeChamaId}:chama`);
+  }, [activeChamaId]);
+
   const clearActiveChama = useCallback(() => {
     if (activeChamaId) invalidateChamaScope(activeChamaId);
     setActiveChamaId(null);
@@ -134,6 +165,7 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
       chamaError: chamaQuery.error,
       knownChamaIds,
       setActiveChama,
+      seedActiveChama,
       rememberChama,
       clearActiveChama,
     }),
@@ -144,6 +176,7 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
       chamaQuery.error,
       knownChamaIds,
       setActiveChama,
+      seedActiveChama,
       rememberChama,
       clearActiveChama,
     ]

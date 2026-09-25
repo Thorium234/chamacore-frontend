@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ChamaCore Frontend
+
+A **consumer UI** for the ChamaCore FastAPI backend (https://github.com/Thorium234/Chamacore).
+
+Built with Next.js (App Router), React 19, TypeScript, Axios, and Tailwind CSS 4.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+
+- A running ChamaCore backend (default `http://localhost:8000`)
+
+### Environment
+
+Create `.env.local` in the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The backend must allow this frontend origin via `CHAMACORE_CORS_ORIGINS`
+(defaults already include `http://localhost:3000`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Run
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000).
 
-To learn more about Next.js, take a look at the following resources:
+### Useful commands
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Command           | Purpose                        |
+|-------------------|--------------------------------|
+| `npm run dev`     | Start the dev server (Turbopack) |
+| `npm run build`   | Production build                |
+| `npm run lint`    | ESLint                          |
+| `npx tsc --noEmit`| Type-check the codebase         |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project layout
 
-## Deploy on Vercel
+- `app/(auth)/` — login, register
+- `app/(app)/` — dashboard, members, contributions, shares, ledger, loans, payouts, payments, audit, profile
+- `features/` — feature modules (forms, lists, context providers)
+- `lib/api/` — one shared Axios client + per-domain API modules
+- `types/api.ts` — API contract types
+- `docs/` — AGENTS.md, FRONTEND_SPEC.md, API_MAP.md, PHASES.md
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Rules
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `docs/AGENTS.md`: the backend owns authz, money, and idempotency — the
+frontend never invents endpoints, payloads, statuses, or balances.

@@ -39,6 +39,7 @@ interface SessionContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<UserOut>;
   linkMember: (payload: MemberLinkPayload) => Promise<UserOut>;
+  refreshSession: () => Promise<UserOut | null>;
   logout: () => Promise<void>;
 }
 
@@ -110,6 +111,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return updated;
   }, []);
 
+  const refreshSession = useCallback(async () => {
+    const me = await getMe();
+    setUser(me);
+    return me;
+  }, []);
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
@@ -126,8 +133,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, user, login, register, linkMember, logout }),
-    [status, user, login, register, linkMember, logout]
+    () => ({ status, user, login, register, linkMember, refreshSession, logout }),
+    [status, user, login, register, linkMember, refreshSession, logout]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

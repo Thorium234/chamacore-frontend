@@ -11,7 +11,7 @@ import { toApiError, getErrorMessage } from "@/lib/api/errors";
 import type { ChamaOut } from "@/types/api";
 
 export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) => void }) {
-  const { setActiveChama } = useChama();
+  const { seedActiveChama } = useChama();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [registrationFee, setRegistrationFee] = useState("0.00");
@@ -45,7 +45,7 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
           government_id: governmentId.trim(),
         },
       });
-      setActiveChama(chama.id);
+      seedActiveChama(chama);
       onCreated?.(chama);
     } catch (err) {
       const apiError = toApiError(err);

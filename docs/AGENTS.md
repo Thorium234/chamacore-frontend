@@ -11,6 +11,7 @@ Also read:
 - `docs/FRONTEND_SPEC.md` — product and architecture rules  
 - `docs/API_MAP.md` — endpoint paths and auth notes  
 - Backend `docs/06_API_CONTRACT.md` and live `/docs` when `CHAMACORE_DEBUG=true`
+- `docs/BACKEND_GAP_chama_create_for_existing_member.md` — confirmed backend hole: chama create for an already-linked user 403s on the new Chama. Do not re-guess a client-side fix.
 
 ---
 

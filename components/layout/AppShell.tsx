@@ -12,6 +12,7 @@ import { Spinner } from "@/components/ui/States";
 import { useSession } from "@/features/auth/session";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
+import { invalidate } from "@/lib/query/cache";
 import { shortId } from "@/lib/format";
 
 function MenuIcon() {
@@ -82,10 +83,11 @@ function Onboarding() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { status, user, logout } = useSession();
+  const { status, user, logout, refreshSession } = useSession();
   const { activeChamaId, activeChama, chamaError, clearActiveChama } = useChama();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
+  const [refreshingSession, setRefreshingSession] = useState(false);
 
   function toggleNav() {
     setNavOpen((open) => !open);
@@ -116,6 +118,24 @@ export function AppShell({ children }: { children: ReactNode }) {
     await logout();
     router.replace("/login");
   }
+
+  async function handleRefreshSession() {
+    if (!activeChamaId || refreshingSession) return;
+    setRefreshingSession(true);
+    try {
+      // Reload the session so a freshly created membership / member_id
+      // becomes visible to the backend, then re-verify the active Chama.
+      await refreshSession();
+      invalidate(`${activeChamaId}:chama`);
+    } catch {
+      // Session refresh failure surfaces through the existing session flow.
+    } finally {
+      setRefreshingSession(false);
+    }
+  }
+
+  const chamaErrorKind = chamaError?.kind ?? null;
+  const isAccessDenied = chamaErrorKind === "permission_denied";
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50">
@@ -162,13 +182,44 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Onboarding />
           ) : chamaError ? (
             <div className="mx-auto mt-8 max-w-xl">
-              <Alert title="This Chama is no longer available">
-                <p>
-                  {chamaError.message} You may not have an active membership in it
-                  anymore.
-                </p>
-                <div className="mt-3">
-                  <Button size="sm" variant="secondary" onClick={clearActiveChama}>
+              <Alert
+                title={
+                  isAccessDenied
+                    ? "Chama access was denied"
+                    : chamaErrorKind === "not_found"
+                      ? "This Chama is no longer available"
+                      : "Could not load this Chama"
+                }
+              >
+                {isAccessDenied ? (
+                  <p>
+                    You are not an active member of this Chama. If you just created
+                    it, your membership link may still be pending — refresh your
+                    session so your member identity reloads, then try again.
+                  </p>
+                ) : chamaErrorKind === "not_found" ? (
+                  <p>
+                    It may have been deleted, or your membership in it was removed.
+                  </p>
+                ) : (
+                  <p>{chamaError.message}</p>
+                )}
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  {isAccessDenied ? (
+                    <Button
+                      size="sm"
+                      onClick={handleRefreshSession}
+                      loading={refreshingSession}
+                    >
+                      Refresh session and retry
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={clearActiveChama}
+                    disabled={refreshingSession}
+                  >
                     Choose another Chama
                   </Button>
                 </div>

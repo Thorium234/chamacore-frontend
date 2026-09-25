@@ -18,7 +18,7 @@ export type QueryState<T> =
 
 interface Entry<T> {
   key: string;
-  fetcher: () => Promise<T>;
+  fetcher?: () => Promise<T>;
   state: QueryState<T>;
 }
 
@@ -49,11 +49,30 @@ export function mergeData<T>(key: string, data: T): void {
   emit();
 }
 
+/** Seed an entry with resolved data without issuing a request (optimistic UI). */
+export function seedEntry<T>(key: string, data: T): void {
+  const existing = entries.get(key);
+  entries.set(key, {
+    key,
+    fetcher: existing ? existing.fetcher as () => Promise<T> : undefined,
+    state: { status: "success", data },
+  });
+  emit();
+}
+
+/** Re-run an entry's fetch in the background while cached data stays visible. */
+export function refetchEntry(key: string): void {
+  const entry = entries.get(key);
+  if (!entry || !entry.fetcher) return;
+  void run(entry);
+}
+
 function emit(): void {
   for (const listener of listeners) listener();
 }
 
 async function run<T>(entry: Entry<T>): Promise<void> {
+  if (!entry.fetcher) return;
   try {
     const data = await entry.fetcher();
     entry.state = { status: "success", data };
