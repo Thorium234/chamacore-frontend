@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { NavLinkList } from "@/components/layout/AppNav";
@@ -13,6 +13,40 @@ import { useSession } from "@/features/auth/session";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
 import { shortId } from "@/lib/format";
+
+function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
 
 function Onboarding() {
   const { knownChamaIds, setActiveChama } = useChama();
@@ -51,6 +85,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { status, user, logout } = useSession();
   const { activeChamaId, activeChama, chamaError, clearActiveChama } = useChama();
   const router = useRouter();
+  const [navOpen, setNavOpen] = useState(false);
+
+  function toggleNav() {
+    setNavOpen((open) => !open);
+  }
+
+  useEffect(() => {
+    if (!navOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setNavOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [navOpen]);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -72,8 +120,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50">
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white">
-        <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={toggleNav}
+              aria-expanded={navOpen}
+              aria-controls="mobile-nav"
+              aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
+              className="rounded-md p-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 lg:hidden"
+            >
+              {navOpen ? <CloseIcon /> : <MenuIcon />}
+            </button>
             <span className="text-lg font-semibold text-indigo-600">ChamaCore</span>
             {activeChamaId ? <ChamaSwitcher /> : null}
           </div>
@@ -86,9 +144,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Button>
           </div>
         </div>
-        <div className="lg:hidden">
-          <NavLinkList orientation="horizontal" />
-        </div>
+        {navOpen ? (
+          <div id="mobile-nav" className="border-t border-zinc-200 lg:hidden">
+            <NavLinkList onNavigate={() => setNavOpen(false)} />
+          </div>
+        ) : null}
       </header>
 
       <div className="flex flex-1">

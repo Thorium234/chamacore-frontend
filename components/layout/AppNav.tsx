@@ -24,7 +24,13 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/profile", label: "Profile" },
 ];
 
-export function NavLinkList({ orientation = "vertical" }: { orientation?: "vertical" | "horizontal" }) {
+export function NavLinkList({
+  orientation = "vertical",
+  onNavigate,
+}: {
+  orientation?: "vertical" | "horizontal";
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -44,6 +50,7 @@ export function NavLinkList({ orientation = "vertical" }: { orientation?: "verti
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
             className={cx(
               "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
