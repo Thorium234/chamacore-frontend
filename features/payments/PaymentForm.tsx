@@ -37,12 +37,13 @@ export function PaymentForm() {
 
   const [membershipId, setMembershipId] = useState("");
   const [amount, setAmount] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   // One idempotency key per logical submit action — kept stable across retries.
   const idempotencyKeyRef = useRef<string | null>(null);
 
   const { mutate, isPending, error, reset } = useMutation(
-    async () => {
+    async (membershipIdArg: string) => {
       if (!chamaId) throw new Error("No active Chama");
       if (!activeConnection) throw new Error("No active payment connection is configured yet.");
       let key = idempotencyKeyRef.current;
@@ -51,7 +52,7 @@ export function PaymentForm() {
         idempotencyKeyRef.current = key;
       }
       const intent = await createPaymentIntent(chamaId, {
-        membership_id: membershipId,
+        membership_id: membershipIdArg,
         amount,
         currency: "KES",
         purpose: "CONTRIBUTION",
@@ -72,8 +73,23 @@ export function PaymentForm() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isPending || !chamaId) return;
-    if (!membershipId || !/^\d+(\.\d{1,2})?$/.test(amount)) return;
-    const result = await mutate();
+
+    const resolvedMembershipId =
+      myMemberships.some((m) => m.id === membershipId)
+        ? membershipId
+        : (myMemberships[0]?.id ?? "");
+
+    if (!resolvedMembershipId) {
+      setFormError("Select the membership you are paying as first.");
+      return;
+    }
+    if (!/^\d+(\.\d{1,2})?$/.test(amount)) {
+      setFormError("Enter a valid amount in KES, e.g. 1500 or 1500.00.");
+      return;
+    }
+    setFormError(null);
+
+    const result = await mutate(resolvedMembershipId);
     if (result) {
       reset();
       setAmount("");
@@ -112,13 +128,20 @@ export function PaymentForm() {
             <Alert title="Could not start the payment">
               {getErrorMessage(toApiError(error))}
             </Alert>
+          ) : formError ? (
+            <Alert title="Check the payment details">
+              {formError}
+            </Alert>
           ) : null}
 
           <Select
             label="Paying as"
             required
             value={effectiveMembershipId}
-            onChange={(event) => setMembershipId(event.target.value)}
+            onChange={(event) => {
+              setMembershipId(event.target.value);
+              setFormError(null);
+            }}
           >
             <option value="" disabled>
               Select your membership…
@@ -136,7 +159,10 @@ export function PaymentForm() {
               required
               inputMode="decimal"
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setFormError(null);
+              }}
               placeholder="1500.00"
             />
             <Input label="Purpose" value="CONTRIBUTION" disabled hint="Contribution to this Chama." />
