@@ -125,11 +125,11 @@ export function LoansList() {
           return (
             <tr key={loan.id}>
               <Td>
-                <span className="font-medium text-zinc-900">{memberFor(loan.membership_id)}</span>
+                <span className="font-medium text-zinc-900 dark:text-zinc-100">{memberFor(loan.membership_id)}</span>
                 {isMine ? <Badge tone="blue">you</Badge> : null}
               </Td>
               <Td>
-                <p className="font-medium text-zinc-900">{formatMoney(loan.principal)}</p>
+                <p className="font-medium text-zinc-900 dark:text-zinc-100">{formatMoney(loan.principal)}</p>
                 <p className="text-xs text-zinc-500">
                   repay {formatMoney(loan.total_expected_repayment)}
                 </p>

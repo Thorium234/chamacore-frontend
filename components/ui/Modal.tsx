@@ -51,21 +51,21 @@ export function Modal({
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         className={cx(
-          "w-full rounded-t-2xl bg-white shadow-xl outline-none sm:rounded-2xl",
+          "w-full rounded-t-2xl bg-white shadow-xl outline-none sm:rounded-2xl dark:bg-zinc-900",
           size === "sm" && "sm:max-w-sm",
           size === "md" && "sm:max-w-lg",
           size === "lg" && "sm:max-w-2xl"
         )}
       >
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
-          <h2 id={titleId} className="text-base font-semibold text-zinc-900">
+        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+          <h2 id={titleId} className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+            className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -74,7 +74,7 @@ export function Modal({
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-5 py-3">
+          <div className="flex items-center justify-end gap-2 border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
             {footer}
           </div>
         ) : null}

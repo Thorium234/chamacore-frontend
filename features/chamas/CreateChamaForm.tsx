@@ -91,8 +91,8 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
         />
       </div>
 
-      <fieldset className="space-y-4 rounded-lg border border-zinc-200 p-4">
-        <legend className="px-1 text-sm font-medium text-zinc-700">
+      <fieldset className="space-y-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+        <legend className="px-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Your member details
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">

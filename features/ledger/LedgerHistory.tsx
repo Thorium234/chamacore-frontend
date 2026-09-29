@@ -60,7 +60,7 @@ export function LedgerHistory({ chamaId }: { chamaId: string }) {
               ) : null}
             </Td>
             <Td>
-              <span className="font-medium text-zinc-900">
+              <span className="font-medium text-zinc-900 dark:text-zinc-100">
                 {tx.description ?? tx.source_type}
               </span>
             </Td>
@@ -68,7 +68,7 @@ export function LedgerHistory({ chamaId }: { chamaId: string }) {
               <ul className="space-y-0.5">
                 {tx.entries.map((entry) => (
                   <li key={entry.account_id} className="font-mono text-xs text-zinc-600">
-                    <span className="font-sans text-zinc-900">{entry.account_name}</span>{" "}
+                    <span className="font-sans text-zinc-900 dark:text-zinc-100">{entry.account_name}</span>{" "}
                     {entry.debit !== "0.00" ? `DR ${formatMoney(entry.debit)}` : ""}
                     {entry.credit !== "0.00" ? `CR ${formatMoney(entry.credit)}` : ""}
                   </li>

@@ -2,15 +2,15 @@ import type { ReactNode } from "react";
 
 export function Spinner({ label = "Loading…" }: { label?: string }) {
   return (
-    <div role="status" aria-label={label} className="flex items-center gap-2 py-8 text-sm text-zinc-500">
-      <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-indigo-600" />
+    <div role="status" aria-label={label} className="flex items-center gap-2 py-8 text-sm text-zinc-500 dark:text-zinc-400">
+      <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-indigo-600 dark:border-zinc-700 dark:border-t-indigo-500" />
       <span>{label}</span>
     </div>
   );
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-zinc-200 ${className}`} />;
+  return <div className={`animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-800 ${className}`} />;
 }
 
 export function TableSkeleton({ rows = 4, cols = 4 }: { rows?: number; cols?: number }) {
@@ -37,10 +37,10 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 px-6 py-12 text-center">
-      <p className="text-base font-semibold text-zinc-700">{title}</p>
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 px-6 py-12 text-center dark:border-zinc-700">
+      <p className="text-base font-semibold text-zinc-700 dark:text-zinc-200">{title}</p>
       {description ? (
-        <p className="mt-1 max-w-sm text-sm text-zinc-500">{description}</p>
+        <p className="mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
@@ -57,14 +57,14 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center">
-      <p className="font-medium text-red-800">{title}</p>
-      {message ? <p className="mt-1 text-sm text-red-700">{message}</p> : null}
+    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center dark:border-red-900 dark:bg-red-950">
+      <p className="font-medium text-red-800 dark:text-red-200">{title}</p>
+      {message ? <p className="mt-1 text-sm text-red-700 dark:text-red-300">{message}</p> : null}
       {onRetry ? (
         <button
           type="button"
           onClick={onRetry}
-          className="mt-3 inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+          className="mt-3 inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-zinc-900 dark:text-red-200 dark:hover:bg-zinc-800"
         >
           Try again
         </button>

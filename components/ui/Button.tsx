@@ -15,11 +15,11 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:outline-indigo-600 disabled:hover:bg-indigo-600",
   secondary:
-    "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 focus-visible:outline-zinc-400 disabled:hover:bg-white",
+    "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 focus-visible:outline-zinc-400 disabled:hover:bg-white dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 dark:disabled:hover:bg-zinc-800",
   danger:
     "bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600 disabled:hover:bg-red-600",
   ghost:
-    "text-zinc-700 hover:bg-zinc-100 focus-visible:outline-zinc-400 disabled:hover:bg-transparent",
+    "text-zinc-700 hover:bg-zinc-100 focus-visible:outline-zinc-400 disabled:hover:bg-transparent dark:text-zinc-300 dark:hover:bg-zinc-800",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

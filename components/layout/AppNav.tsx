@@ -56,8 +56,8 @@ export function NavLinkList({
               "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               orientation === "horizontal" && "shrink-0 whitespace-nowrap",
               isActive
-                ? "bg-indigo-50 text-indigo-700"
-                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             )}
           >
             {item.label}

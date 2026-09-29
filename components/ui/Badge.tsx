@@ -5,12 +5,12 @@ import { cx } from "@/components/ui/cx";
 type Tone = "gray" | "green" | "amber" | "red" | "blue" | "indigo";
 
 const toneClasses: Record<Tone, string> = {
-  gray: "bg-zinc-100 text-zinc-700",
-  green: "bg-emerald-50 text-emerald-700",
-  amber: "bg-amber-50 text-amber-700",
-  red: "bg-red-50 text-red-700",
-  blue: "bg-sky-50 text-sky-700",
-  indigo: "bg-indigo-50 text-indigo-700",
+  gray: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  amber: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  red: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+  blue: "bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
+  indigo: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300",
 };
 
 export function Badge({

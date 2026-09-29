@@ -139,13 +139,13 @@ export function PayoutsList() {
           return (
             <tr key={payout.id}>
               <Td>
-                <span className="font-medium text-zinc-900">
+                <span className="font-medium text-zinc-900 dark:text-zinc-100">
                   {memberFor(payout.membership_id)}
                 </span>
                 {mine ? <Badge tone="blue">you</Badge> : null}
               </Td>
               <Td>
-                <p className="font-medium text-zinc-900">{formatMoney(payout.amount)}</p>
+                <p className="font-medium text-zinc-900 dark:text-zinc-100">{formatMoney(payout.amount)}</p>
                 <span className="font-mono text-xs text-zinc-400">
                   {shortId(payout.id)}
                 </span>

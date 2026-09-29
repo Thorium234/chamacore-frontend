@@ -73,11 +73,11 @@ export function AuditLogTable() {
               )}
             </Td>
             <Td>
-              <span className="font-mono text-xs text-zinc-800">{event.action}</span>
+              <span className="font-mono text-xs text-zinc-800 dark:text-zinc-200">{event.action}</span>
             </Td>
             <Td>
               <div className="space-y-0.5">
-                <span className="text-sm text-zinc-700">
+                <span className="text-sm text-zinc-700 dark:text-zinc-300">
                   {resourceLabel(event.resource_type)}
                 </span>
                 {event.resource_id ? (

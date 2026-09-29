@@ -91,7 +91,7 @@ function SharesViewer() {
                 <tr key={share.id}>
                   <Td>{formatDateTime(share.created_at)}</Td>
                   <Td>
-                    <span className="font-mono text-sm text-zinc-900">{share.units}</span>
+                    <span className="font-mono text-sm text-zinc-900 dark:text-zinc-100">{share.units}</span>
                   </Td>
                   <Td>
                     <StatusBadge status={share.status} />

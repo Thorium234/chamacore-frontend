@@ -21,10 +21,10 @@ export default function ProfilePage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Account">
-          <dl className="divide-y divide-zinc-100">
+          <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
             <div className="flex items-center justify-between py-2.5">
               <dt className="text-sm text-zinc-500">Email</dt>
-              <dd className="text-sm font-medium text-zinc-900">{user.email}</dd>
+              <dd className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{user.email}</dd>
             </div>
             <div className="flex items-center justify-between py-2.5">
               <dt className="text-sm text-zinc-500">Member record</dt>
@@ -38,7 +38,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center justify-between py-2.5">
               <dt className="text-sm text-zinc-500">Joined</dt>
-              <dd className="text-sm text-zinc-700">{formatDate(user.created_at)}</dd>
+              <dd className="text-sm text-zinc-700 dark:text-zinc-300">{formatDate(user.created_at)}</dd>
             </div>
           </dl>
         </Card>
@@ -53,7 +53,7 @@ export default function ProfilePage() {
                 You have not opened any Chama yet. Create one below.
               </p>
             ) : (
-              <ul className="divide-y divide-zinc-100">
+              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {knownChamaIds.map((chamaId) => (
                   <li key={chamaId} className="flex items-center justify-between py-2.5">
                     <span className="font-mono text-xs text-zinc-600">{chamaId.slice(0, 8)}…</span>

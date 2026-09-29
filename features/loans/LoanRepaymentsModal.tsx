@@ -101,17 +101,17 @@ export function LoanRepaymentsModal({
         <div className="flex flex-wrap gap-6 text-sm">
           <div>
             <p className="text-xs text-zinc-500">Principal</p>
-            <p className="font-medium text-zinc-900">{formatMoney(loan.principal)}</p>
+            <p className="font-medium text-zinc-900 dark:text-zinc-100">{formatMoney(loan.principal)}</p>
           </div>
           <div>
             <p className="text-xs text-zinc-500">Outstanding principal</p>
-            <p className="font-medium text-zinc-900">
+            <p className="font-medium text-zinc-900 dark:text-zinc-100">
               {formatMoney(loan.outstanding_principal)}
             </p>
           </div>
           <div>
             <p className="text-xs text-zinc-500">Outstanding interest</p>
-            <p className="font-medium text-zinc-900">
+            <p className="font-medium text-zinc-900 dark:text-zinc-100">
               {formatMoney(loan.outstanding_interest)}
             </p>
           </div>
@@ -124,7 +124,7 @@ export function LoanRepaymentsModal({
         {canRecord &&
         (loan.status === "DISBURSED" || loan.status === "PARTIALLY_REPAID") ? (
           <form onSubmit={onRecord} className="space-y-3 border-t border-zinc-100 pt-4">
-            <p className="text-sm font-medium text-zinc-700">Record a repayment</p>
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Record a repayment</p>
             {actionError ? <Alert>{actionError}</Alert> : null}
             <div className="grid gap-3 sm:grid-cols-2">
               <Input
@@ -158,7 +158,7 @@ export function LoanRepaymentsModal({
         )}
 
         <div className="border-t border-zinc-100 pt-4">
-          <p className="mb-3 text-sm font-medium text-zinc-700">Repayment history</p>
+          <p className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Repayment history</p>
           {repayments.isLoading ? (
             <TableSkeleton rows={3} cols={4} />
           ) : repayments.error ? (

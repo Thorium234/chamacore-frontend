@@ -3,7 +3,7 @@ import { forwardRef, useId, type InputHTMLAttributes, type SelectHTMLAttributes,
 import { cx } from "@/components/ui/cx";
 
 const fieldBase =
-  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:opacity-70";
+  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:disabled:bg-zinc-800";
 
 function FieldShell({
   label,
@@ -21,15 +21,15 @@ function FieldShell({
   return (
     <div className="flex flex-col gap-1">
       {label ? (
-        <label htmlFor={htmlFor} className="text-sm font-medium text-zinc-700">
+        <label htmlFor={htmlFor} className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           {label}
         </label>
       ) : null}
       {children}
       {hint && !error ? (
-        <p className="text-xs text-zinc-500">{hint}</p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</p>
       ) : null}
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-red-600 dark:text-red-400">{error}</p> : null}
     </div>
   );
 }

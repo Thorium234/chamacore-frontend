@@ -173,7 +173,7 @@ export function MembersList() {
             return (
               <tr key={membership.id}>
                 <Td>
-                  <span className="font-medium text-zinc-900">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
                     {membership.member
                       ? `${membership.member.first_name} ${membership.member.last_name}`
                       : "—"}
@@ -210,7 +210,7 @@ export function MembersList() {
                     {isChair && membership.roles.includes("CHAIRPERSON") ? null : isChair ? (
                       <select
                         aria-label={`Assign role to ${membership.member?.first_name ?? "member"}`}
-                        className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs text-zinc-600 focus:border-indigo-500 focus:outline-none"
+                        className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs text-zinc-600 focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
                         defaultValue=""
                         onChange={(event) => {
                           const role = event.target.value as "TREASURER" | "SECRETARY";

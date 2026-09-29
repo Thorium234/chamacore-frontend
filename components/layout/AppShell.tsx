@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { NavLinkList } from "@/components/layout/AppNav";
 import { ChamaSwitcher } from "@/components/layout/ChamaSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -54,18 +55,18 @@ function Onboarding() {
   return (
     <div className="mx-auto mt-8 max-w-xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900">Welcome to ChamaCore</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Welcome to ChamaCore</h1>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Create a Chama to start tracking contributions, shares, and your ledger.
         </p>
       </div>
 
       {knownChamaIds.length > 0 ? (
         <Card title="Your recent Chamas">
-          <ul className="divide-y divide-zinc-100">
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {knownChamaIds.map((chamaId) => (
               <li key={chamaId} className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-zinc-700">{shortId(chamaId)}</span>
+                <span className="text-sm text-zinc-700 dark:text-zinc-300">{shortId(chamaId)}</span>
                 <Button size="sm" variant="secondary" onClick={() => setActiveChama(chamaId)}>
                   Open
                 </Button>
@@ -138,8 +139,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isAccessDenied = chamaErrorKind === "permission_denied";
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50">
-      <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white">
+    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
+      <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
@@ -148,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-expanded={navOpen}
               aria-controls="mobile-nav"
               aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
-              className="rounded-md p-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 lg:hidden"
+              className="rounded-md p-2 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 lg:hidden"
             >
               {navOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
@@ -156,23 +157,24 @@ export function AppShell({ children }: { children: ReactNode }) {
             {activeChamaId ? <ChamaSwitcher /> : null}
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden max-w-48 truncate text-sm text-zinc-500 sm:inline">
+            <span className="hidden max-w-48 truncate text-sm text-zinc-500 dark:text-zinc-400 sm:inline">
               {user?.email}
             </span>
+            <ThemeToggle />
             <Button variant="secondary" size="sm" onClick={handleLogout}>
               Sign out
             </Button>
           </div>
         </div>
         {navOpen ? (
-          <div id="mobile-nav" className="border-t border-zinc-200 lg:hidden">
+          <div id="mobile-nav" className="border-t border-zinc-200 dark:border-zinc-800 lg:hidden">
             <NavLinkList onNavigate={() => setNavOpen(false)} />
           </div>
         ) : null}
       </header>
 
       <div className="flex flex-1">
-        <aside className="hidden w-56 shrink-0 border-r border-zinc-200 bg-white lg:block">
+        <aside className="hidden w-56 shrink-0 border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 lg:block">
           <div className="sticky top-[57px]">
             <NavLinkList />
           </div>

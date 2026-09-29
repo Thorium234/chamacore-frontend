@@ -87,7 +87,7 @@ export function ConnectionsList() {
         {connections.data?.map((connection) => (
           <tr key={connection.id}>
             <Td>
-              <span className="font-medium text-zinc-900">{connection.provider_code}</span>
+              <span className="font-medium text-zinc-900 dark:text-zinc-100">{connection.provider_code}</span>
             </Td>
             <Td>
               <span className="text-xs uppercase tracking-wide text-zinc-500">
@@ -177,7 +177,7 @@ export function ConnectionsList() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <StatusBadge status={c2bResult.accepted ? "ACTIVE" : "REJECTED"} />
-              <span className="text-sm text-zinc-700">{c2bResult.response_description}</span>
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">{c2bResult.response_description}</span>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">

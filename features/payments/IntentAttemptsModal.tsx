@@ -62,7 +62,7 @@ export function IntentAttemptsModal({
             {attempts.data?.map((attempt) => (
               <tr key={attempt.id}>
                 <Td>
-                  <span className="font-medium text-zinc-900">{attempt.attempt_number}</span>
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{attempt.attempt_number}</span>
                 </Td>
                 <Td>
                   <StatusBadge status={attempt.status} />

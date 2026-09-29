@@ -61,7 +61,7 @@ export function IntentsList() {
         {intents.data?.map((intent) => (
           <tr key={intent.id}>
             <Td>
-              <span className="font-medium text-zinc-900">{memberFor(intent.membership_id)}</span>
+              <span className="font-medium text-zinc-900 dark:text-zinc-100">{memberFor(intent.membership_id)}</span>
             </Td>
             <Td>{formatMoney(intent.amount)}</Td>
             <Td>

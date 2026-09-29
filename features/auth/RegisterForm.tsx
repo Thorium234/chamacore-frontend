@@ -52,11 +52,11 @@ export function RegisterForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       noValidate
     >
-      <h1 className="text-lg font-semibold text-zinc-900">Create your account</h1>
-      <p className="mt-1 text-sm text-zinc-500">
+      <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Create your account</h1>
+      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
         Register first, then you can create a Chama and become its chairperson.
       </p>
 

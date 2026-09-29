@@ -51,7 +51,7 @@ function LedgerViewer() {
                     className={
                       accountId === acc.id
                         ? "font-medium text-indigo-600 underline"
-                        : "font-medium text-zinc-900 hover:text-indigo-600"
+                        : "font-medium text-zinc-900 dark:text-zinc-100 hover:text-indigo-600"
                     }
                   >
                     {acc.name}
@@ -63,7 +63,7 @@ function LedgerViewer() {
                   </span>
                 </Td>
                 <Td align="right">
-                  <span className="font-mono text-sm font-semibold text-zinc-900">
+                  <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     {formatAccountBalance(acc)}
                   </span>
                 </Td>

@@ -51,11 +51,11 @@ export function ContributionList() {
       : null;
     return member ? (
       <>
-        <span className="font-medium text-zinc-900">{member}</span>
+        <span className="font-medium text-zinc-900 dark:text-zinc-100">{member}</span>
         <span className="ml-2 text-xs text-zinc-400">{shortId(c.membership_id)}</span>
       </>
     ) : (
-      <span className="font-medium text-zinc-900">{shortId(c.membership_id)}</span>
+      <span className="font-medium text-zinc-900 dark:text-zinc-100">{shortId(c.membership_id)}</span>
     );
   };
 

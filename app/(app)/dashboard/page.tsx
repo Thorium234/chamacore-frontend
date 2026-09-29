@@ -56,7 +56,7 @@ export default function DashboardPage() {
         {(accounts.isLoading || accounts.data === undefined) && !accounts.error ? (
           <>
             {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-24 animate-pulse rounded-xl bg-zinc-200" />
+              <div key={index} className="h-24 animate-pulse rounded-xl bg-zinc-200 dark:bg-zinc-800" />
             ))}
           </>
         ) : (
@@ -102,14 +102,14 @@ export default function DashboardPage() {
                   <tr key={tx.id}>
                     <Td>{formatDateTime(tx.created_at)}</Td>
                     <Td>
-                      <span className="font-medium text-zinc-900">{tx.description ?? tx.source_type}</span>
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">{tx.description ?? tx.source_type}</span>
                       {isReversal ? <Badge tone="red" className="ml-2">REVERSAL</Badge> : null}
                     </Td>
                     <Td>
                       <ul className="space-y-0.5">
                         {tx.entries.map((entry) => (
-                          <li key={entry.account_id} className="font-mono text-xs text-zinc-600">
-                            <span className="text-zinc-900">{entry.account_name}</span>{" "}
+                          <li key={entry.account_id} className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                            <span className="text-zinc-900 dark:text-zinc-100">{entry.account_name}</span>{" "}
                             {entry.debit !== "0.00" ? `DR ${formatMoney(entry.debit)}` : ""}
                             {entry.credit !== "0.00" ? `CR ${formatMoney(entry.credit)}` : ""}
                           </li>

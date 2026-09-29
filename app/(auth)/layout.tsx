@@ -23,10 +23,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-4 py-10">
+    <main className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-4 py-10 dark:bg-zinc-950">
       <div className="mb-6 text-center">
         <p className="text-2xl font-semibold tracking-tight text-indigo-600">ChamaCore</p>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Contributions, shares, and ledger for your Chama.
         </p>
       </div>
