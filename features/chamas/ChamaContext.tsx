@@ -12,8 +12,9 @@ import {
 } from "react";
 
 import { useSession } from "@/features/auth/session";
-import { getChama } from "@/lib/api/chamas";
+import { getChama, listMyChamas } from "@/lib/api/chamas";
 import {
+  invalidate,
   invalidateChamaScope,
   refetchEntry,
   seedEntry,
@@ -23,7 +24,6 @@ import type { ApiError } from "@/lib/api/errors";
 import type { ChamaOut } from "@/types/api";
 
 const ACTIVE_CHAMA_KEY = "chamacore.active_chama_id";
-const KNOWN_CHAMAS_KEY = "chamacore.known_chama_ids";
 
 function readStored(key: string): string | null {
   if (typeof window === "undefined") return null;
@@ -44,33 +44,17 @@ function writeStored(key: string, value: string | null): void {
   }
 }
 
-function readKnownChamas(): string[] {
-  const raw = readStored(KNOWN_CHAMAS_KEY);
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((item): item is string => typeof item === "string");
-    }
-  } catch {
-    // Ignore corrupt storage.
-  }
-  return [];
-}
-
-function writeKnownChamas(ids: string[]): void {
-  writeStored(KNOWN_CHAMAS_KEY, JSON.stringify(ids));
-}
-
 interface ChamaContextValue {
   activeChamaId: string | null;
   activeChama: ChamaOut | undefined;
   isLoadingChama: boolean;
   chamaError: ApiError | null;
-  knownChamaIds: string[];
+  myChamas: ChamaOut[];
+  isLoadingMyChamas: boolean;
+  myChamasError: ApiError | null;
+  refreshMyChamas: () => void;
   setActiveChama: (chamaId: string) => void;
   seedActiveChama: (chama: ChamaOut) => void;
-  rememberChama: (chamaId: string) => void;
   clearActiveChama: () => void;
 }
 
@@ -81,7 +65,6 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
   const [activeChamaId, setActiveChamaId] = useState<string | null>(() =>
     readStored(ACTIVE_CHAMA_KEY)
   );
-  const [knownChamaIds, setKnownChamaIds] = useState<string[]>(() => readKnownChamas());
 
   const chamaQuery = useQuery<ChamaOut | null>(
     activeChamaId ? `${activeChamaId}:chama` : null,
@@ -89,6 +72,14 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
       if (!activeChamaId) return null;
       return getChama(activeChamaId);
     }
+  );
+
+  // Server-backed list of the authenticated user's Chamas. This is the only
+  // source of truth for "which Chamas can I open"; localStorage is just the
+  // last-selected preference.
+  const myChamasQuery = useQuery<ChamaOut[] | null>(
+    status === "authenticated" ? "my-chamas" : null,
+    async () => (status === "authenticated" ? listMyChamas() : null)
   );
 
   useEffect(() => {
@@ -99,18 +90,35 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
     }
   }, [status]);
 
-  // After logout the active selection is hidden even while the provider keeps
-  // its internal state (derivation, not a state write).
-  const visibleActiveChamaId = status === "unauthenticated" ? null : activeChamaId;
+  const myChamas = useMemo(() => myChamasQuery.data ?? [], [myChamasQuery.data]);
 
-  const rememberChama = useCallback((chamaId: string) => {
-    setKnownChamaIds((previous) => {
-      if (previous.includes(chamaId)) return previous;
-      const next = [chamaId, ...previous].slice(0, 20);
-      writeKnownChamas(next);
-      return next;
-    });
-  }, []);
+  // Escape hatch for a Chama created moments ago: a my-chamas request that was
+  // already in flight when the Chama was created will not list it yet. State
+  // (not a ref) so the value is safe to read while rendering.
+  const [createdChamaId, setCreatedChamaId] = useState<string | null>(null);
+
+  // The selection only falls back to "no Chama" once the server list has
+  // actually loaded and the stored id is missing from it. While the list is
+  // still loading, unavailable, or failed, keep the stored selection so a
+  // transient API error never erases the user's Chama (derived value, not a
+  // state write — this never runs in an effect).
+  const myChamasReady =
+    status === "authenticated" && !myChamasQuery.isLoading && !myChamasQuery.error;
+  const myChamaIds = useMemo(() => new Set(myChamas.map((c) => c.id)), [myChamas]);
+
+  const visibleActiveChamaId =
+    status === "unauthenticated"
+      ? null
+      : myChamasReady &&
+          activeChamaId &&
+          createdChamaId !== activeChamaId &&
+          !myChamaIds.has(activeChamaId)
+        ? null
+        : activeChamaId;
+
+  const refreshMyChamas = useCallback(() => {
+    if (status === "authenticated") invalidate("my-chamas");
+  }, [status]);
 
   const setActiveChama = useCallback(
     (chamaId: string) => {
@@ -121,9 +129,9 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
       }
       setActiveChamaId(chamaId);
       writeStored(ACTIVE_CHAMA_KEY, chamaId);
-      rememberChama(chamaId);
+      setCreatedChamaId(null);
     },
-    [activeChamaId, rememberChama]
+    [activeChamaId]
   );
 
   const seededChamaRef = useRef<string | null>(null);
@@ -140,9 +148,15 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
       }
       setActiveChamaId(chama.id);
       writeStored(ACTIVE_CHAMA_KEY, chama.id);
-      rememberChama(chama.id);
+      // The freshly created Chama must appear in the switcher / onboarding
+      // list. Refetch in the background (rather than invalidating) so the
+      // cached list stays visible, and the request is issued *after* the
+      // create, so its response already contains the new Chama. The state
+      // above covers an earlier in-flight list response winning the race.
+      setCreatedChamaId(chama.id);
+      refetchEntry("my-chamas");
     },
-    [activeChamaId, rememberChama]
+    [activeChamaId]
   );
 
   useEffect(() => {
@@ -155,6 +169,7 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
     if (activeChamaId) invalidateChamaScope(activeChamaId);
     setActiveChamaId(null);
     writeStored(ACTIVE_CHAMA_KEY, null);
+    setCreatedChamaId(null);
   }, [activeChamaId]);
 
   const value = useMemo(
@@ -163,10 +178,12 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
       activeChama: chamaQuery.data ?? undefined,
       isLoadingChama: chamaQuery.isLoading,
       chamaError: chamaQuery.error,
-      knownChamaIds,
+      myChamas,
+      isLoadingMyChamas: myChamasQuery.isLoading,
+      myChamasError: myChamasQuery.error,
+      refreshMyChamas,
       setActiveChama,
       seedActiveChama,
-      rememberChama,
       clearActiveChama,
     }),
     [
@@ -174,10 +191,12 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
       chamaQuery.data,
       chamaQuery.isLoading,
       chamaQuery.error,
-      knownChamaIds,
+      myChamas,
+      myChamasQuery.isLoading,
+      myChamasQuery.error,
+      refreshMyChamas,
       setActiveChama,
       seedActiveChama,
-      rememberChama,
       clearActiveChama,
     ]
   );

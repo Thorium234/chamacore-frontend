@@ -1,34 +1,22 @@
 "use client";
 
 import { useChama } from "@/features/chamas/ChamaContext";
-import { getChama } from "@/lib/api/chamas";
-import { useQuery } from "@/lib/query/hooks";
 import { shortId } from "@/lib/format";
 
 export function ChamaSwitcher() {
-  const { activeChamaId, activeChama, knownChamaIds, setActiveChama } = useChama();
+  const { activeChamaId, activeChama, myChamas, setActiveChama } = useChama();
 
-  const options = activeChamaId ? [...new Set([activeChamaId, ...knownChamaIds])] : [];
-
-  const namesQuery = useQuery<Record<string, string>>(
-    options.length > 0 ? `chama-names:${options.join(",")}` : null,
-    async () => {
-      const result: Record<string, string> = {};
-      for (const chamaId of options) {
-        try {
-          const chama = await getChama(chamaId);
-          result[chamaId] = chama.name;
-        } catch {
-          // Chama not accessible to this user (e.g. membership ended); skip it.
-        }
-      }
-      return result;
-    }
-  );
+  const options = activeChamaId
+    ? [...new Set([activeChamaId, ...myChamas.map((c) => c.id)])]
+    : [];
 
   if (!activeChamaId) return null;
 
-  const names = namesQuery.data ?? {};
+  const names = new Map(myChamas.map((c) => [c.id, c.name]));
+  const nameFor = (chamaId: string) =>
+    chamaId === activeChamaId && activeChama
+      ? activeChama.name
+      : (names.get(chamaId) ?? shortId(chamaId));
 
   return (
     <div className="flex items-center gap-2">
@@ -43,9 +31,7 @@ export function ChamaSwitcher() {
       >
         {options.map((chamaId) => (
           <option key={chamaId} value={chamaId}>
-            {chamaId === activeChamaId && activeChama
-              ? activeChama.name
-              : (names[chamaId] ?? shortId(chamaId))}
+            {nameFor(chamaId)}
           </option>
         ))}
       </select>

@@ -19,6 +19,7 @@ Login must use Content-Type: application/x-www-form-urlencoded, not JSON.
 3. Chamas
    Method,Path,Notes
 POST,/api/v1/chamas,Creates Chama + creator member + CHAIRPERSON
+GET,/api/v1/chamas,My Chamas (authenticated user, ACTIVE memberships only)
 GET,/api/v1/chamas/{chama_id},Active membership required
 PATCH,/api/v1/chamas/{chama_id},Chairperson only
 4. Create body:
@@ -46,6 +47,9 @@ DELETE,/api/v1/chamas/{chama_id}/memberships/{membership_id}/roles/{role_name},C
 Method,Path,Notes
 GET,/api/v1/chamas/{chama_id}/memberships/{membership_id}/registration-fee,
 POST,/api/v1/chamas/{chama_id}/memberships/{membership_id}/registration-fee/waive,Chair
+POST,/api/v1/chamas/{chama_id}/memberships/{membership_id}/registration-fee/pay,"Mark fee PAID (chair); posts ledger txn, safe to retry"
+POST,/api/v1/chamas/{chama_id}/memberships/{membership_id}/registration-fee/payment/reverse,Chair
+GET,/api/v1/chamas/{chama_id}/memberships/{membership_id}/registration-fee/payments,Payment history (CONFIRMED / REVERSED)
 8. Contributions
    Method,Path,Notes
 POST,/api/v1/chamas/{chama_id}/contributions,"Chair/Treasurer; { membership_id, amount, period }"
@@ -89,7 +93,9 @@ Method,Path
 GET,/health
 GET,/ready
 Loans / payouts / audit
-Confirm in backend /docs before any UI.
+Backend paths confirmed; audit UI shipped:
+  GET,/api/v1/chamas/{chama_id}/audit-events,"?limit=1..500 (default 100) & offset>=0; bare list, no page envelope"
+Loans & payouts UI are not built yet (P2 plan).
 HTTP status cheat sheet
 Status,UI behaviour
 401,Refresh once; else logout

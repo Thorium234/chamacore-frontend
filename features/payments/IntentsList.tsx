@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useChama } from "@/features/chamas/ChamaContext";
 import { Table, Td } from "@/components/ui/Table";
@@ -8,11 +8,14 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { useQuery } from "@/lib/query/hooks";
+import { refetchEntry } from "@/lib/query/cache";
 import { listPaymentIntents } from "@/lib/api/payments";
 import { listMemberships } from "@/lib/api/memberships";
 import { formatDateTime, formatMoney, shortId } from "@/lib/format";
 import { IntentAttemptsModal } from "@/features/payments/IntentAttemptsModal";
 import type { MembershipOut, PaymentIntentOut } from "@/types/api";
+
+const INTENT_REFRESH_MS = 15000;
 
 export function IntentsList() {
   const { activeChamaId } = useChama();
@@ -27,6 +30,19 @@ export function IntentsList() {
     chamaId ? `${chamaId}:memberships` : null,
     async () => (chamaId ? listMemberships(chamaId) : [])
   );
+
+  // While a payment is PROCESSING, quietly reload the list so a delayed STK
+  // callback is reflected without a manual refresh. Stops once nothing is in
+  // flight and never runs while the tab is hidden.
+  useEffect(() => {
+    if (!chamaId) return;
+    const inFlight = (intents.data ?? []).some((intent) => intent.status === "PROCESSING");
+    if (!inFlight) return;
+    const interval = window.setInterval(() => {
+      if (!document.hidden) refetchEntry(`${chamaId}:payment-intents`);
+    }, INTENT_REFRESH_MS);
+    return () => window.clearInterval(interval);
+  }, [chamaId, intents.data]);
 
   const membersById = new Map((memberships.data ?? []).map((m) => [m.id, m]));
   const memberFor = (id: string) => {
@@ -47,6 +63,20 @@ export function IntentsList() {
 
   return (
     <>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          A payment can linger before the provider callback arrives — use Refresh
+          to reconcile with the provider. PROCESSING intents reload automatically.
+        </p>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => chamaId && refetchEntry(`${chamaId}:payment-intents`)}
+        >
+          Refresh
+        </Button>
+      </div>
+
       <Table
         head={[
           "Member",

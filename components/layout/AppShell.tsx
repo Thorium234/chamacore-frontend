@@ -14,7 +14,6 @@ import { useSession } from "@/features/auth/session";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
 import { invalidate } from "@/lib/query/cache";
-import { shortId } from "@/lib/format";
 
 function MenuIcon() {
   return (
@@ -51,7 +50,13 @@ function CloseIcon() {
 }
 
 function Onboarding() {
-  const { knownChamaIds, setActiveChama } = useChama();
+  const {
+    myChamas,
+    isLoadingMyChamas,
+    myChamasError,
+    refreshMyChamas,
+    setActiveChama,
+  } = useChama();
   return (
     <div className="mx-auto mt-8 max-w-xl space-y-6">
       <div>
@@ -61,13 +66,28 @@ function Onboarding() {
         </p>
       </div>
 
-      {knownChamaIds.length > 0 ? (
-        <Card title="Your recent Chamas">
+      {isLoadingMyChamas ? (
+        <Card title="Your Chamas">
+          <Spinner />
+        </Card>
+      ) : myChamasError ? (
+        <Card title="Your Chamas">
+          <Alert title="Could not load your Chamas">
+            <p>{myChamasError.message}</p>
+            <div className="mt-3">
+              <Button size="sm" variant="secondary" onClick={refreshMyChamas}>
+                Retry
+              </Button>
+            </div>
+          </Alert>
+        </Card>
+      ) : myChamas.length > 0 ? (
+        <Card title="Your Chamas">
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {knownChamaIds.map((chamaId) => (
-              <li key={chamaId} className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-zinc-700 dark:text-zinc-300">{shortId(chamaId)}</span>
-                <Button size="sm" variant="secondary" onClick={() => setActiveChama(chamaId)}>
+            {myChamas.map((chama) => (
+              <li key={chama.id} className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-zinc-700 dark:text-zinc-300">{chama.name}</span>
+                <Button size="sm" variant="secondary" onClick={() => setActiveChama(chama.id)}>
                   Open
                 </Button>
               </li>

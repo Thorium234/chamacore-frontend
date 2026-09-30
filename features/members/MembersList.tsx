@@ -19,6 +19,7 @@ import {
 } from "@/lib/api/registration-fees";
 import { formatDate, formatMoney } from "@/lib/format";
 import { toApiError, getErrorMessage } from "@/lib/api/errors";
+import { FeeHistoryModal } from "@/features/members/FeeHistoryModal";
 import type { MembershipOut } from "@/types/api";
 
 const LEADERSHIP_ROLES = ["TREASURER", "SECRETARY"];
@@ -39,6 +40,7 @@ export function MembersList() {
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [error, setError] = useState<string | null>(null);
+  const [feeHistory, setFeeHistory] = useState<MembershipOut | null>(null);
 
   const memberships = useQuery<MembershipOut[]>(
     chamaId ? `${chamaId}:memberships` : null,
@@ -269,6 +271,13 @@ export function MembersList() {
                             Reverse
                           </Button>
                         ) : null}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setFeeHistory(membership)}
+                        >
+                          History
+                        </Button>
                       </div>
                     ) : (
                       "—"
@@ -365,6 +374,14 @@ export function MembersList() {
         error={error}
         onConfirm={confirm}
       />
+
+      {chamaId && feeHistory ? (
+        <FeeHistoryModal
+          chamaId={chamaId}
+          membership={feeHistory}
+          onClose={() => setFeeHistory(null)}
+        />
+      ) : null}
     </>
   );
 }

@@ -17,7 +17,7 @@ export default function AuditPage() {
 
       {activeChamaId ? (
         <Card title="Audit events" description="Every action is attributed to an actor and a request.">
-          <AuditLogTable />
+          <AuditLogTable key={activeChamaId} />
         </Card>
       ) : (
         <Card title="Audit log">Select a Chama to see its audit events.</Card>

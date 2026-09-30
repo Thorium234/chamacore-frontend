@@ -69,3 +69,20 @@ add `GET /api/v1/chamas` (my chamas) so onboarding does not depend on localStora
 
 The workaround cannot fully fix the second-Chama case: only a backend change
 (make create attach the creator to their existing member) restores access.
+
+---
+
+## RESOLVED
+
+- **Date:** 2026-09-30
+- **Backend commit:** `1206e1d` — "Fix chama create for linked users: reuse
+  linked member, add my-chamas listing (ADR-008)".
+- The backend now:
+  1. reuses `users.member_id` for the creator's membership on a new Chama, so
+     `GET /chamas/{new_id}` returns 200 immediately after create, and
+  2. adds `GET /api/v1/chamas` returning the authenticated user's Chamas
+     (ACTIVE memberships only).
+- Frontend now consumes the fix: `lib/api/chamas.ts:listMyChamas()` backs the
+  server `my-chamas` query in `ChamaContext`; onboarding, the Chama switcher,
+  and the profile page list Chamas from the server instead of localStorage.
+  This document is kept as the historical reproduction record.

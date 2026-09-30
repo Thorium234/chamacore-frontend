@@ -86,13 +86,13 @@ Follow this order. Do not skip auth or invent later-phase screens early.
 
 ---
 
-## Phase 6 — Optional (backend-confirmed only)
+## Phase 6 — Backend-confirmed (partial)
 
-- [ ] Loans UI  
-- [ ] Payouts UI  
-- [ ] Audit log UI  
+- [x] Audit log UI (shipped; GET `/chamas/{id}/audit-events` with offset paging)
+- [ ] Loans UI (backend paths confirmed; UI pending)
+- [ ] Payouts UI (backend paths confirmed; UI pending)
 
-Only after paths exist in backend OpenAPI / `06_API_CONTRACT.md`.
+Only build against paths present in backend OpenAPI / `06_API_CONTRACT.md`.
 
 ---
 

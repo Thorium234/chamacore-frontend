@@ -11,6 +11,11 @@ export async function getChama(chamaId: string): Promise<ChamaOut> {
   return data;
 }
 
+export async function listMyChamas(): Promise<ChamaOut[]> {
+  const { data } = await api.get<ChamaOut[]>("/chamas");
+  return data;
+}
+
 export async function updateChama(
   chamaId: string,
   payload: ChamaUpdatePayload

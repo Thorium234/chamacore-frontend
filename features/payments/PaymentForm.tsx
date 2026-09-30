@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/Alert";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { useSession } from "@/features/auth/session";
 import { useMutation, useQuery } from "@/lib/query/hooks";
+import { refetchEntry } from "@/lib/query/cache";
 import { createPaymentIntent, initiatePaymentIntent, listPaymentConnections } from "@/lib/api/payments";
 import { listMemberships } from "@/lib/api/memberships";
 import { getErrorMessage, toApiError } from "@/lib/api/errors";
@@ -93,6 +94,12 @@ export function PaymentForm() {
     if (result) {
       reset();
       setAmount("");
+    } else if (chamaId) {
+      // The failure may be a network loss after the provider accepted the push.
+      // Reload intent state so the user sees what actually happened before
+      // trying again — a retry reuses the same idempotency key, so a duplicate
+      // is rejected safely.
+      refetchEntry(`${chamaId}:payment-intents`);
     }
   }
 
@@ -126,7 +133,13 @@ export function PaymentForm() {
         <form onSubmit={onSubmit} noValidate className="space-y-4">
           {error ? (
             <Alert title="Could not start the payment">
-              {getErrorMessage(toApiError(error))}
+              <p>{getErrorMessage(toApiError(error))}</p>
+              <p className="mt-1">
+                The provider may still process the request. Open “Payment
+                intents” and use Refresh to reconcile before initiating again —
+                a retry reuses the same idempotency key, so a duplicate is
+                rejected safely.
+              </p>
             </Alert>
           ) : formError ? (
             <Alert title="Check the payment details">

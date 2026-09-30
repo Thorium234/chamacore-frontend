@@ -5,13 +5,22 @@ import { useChama } from "@/features/chamas/ChamaContext";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
+import { Spinner } from "@/components/ui/States";
 import { MemberLinkForm } from "@/features/auth/MemberLinkForm";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
 import { formatDate } from "@/lib/format";
 
 export default function ProfilePage() {
   const { user } = useSession();
-  const { knownChamaIds, setActiveChama } = useChama();
+  const {
+    myChamas,
+    isLoadingMyChamas,
+    myChamasError,
+    refreshMyChamas,
+    setActiveChama,
+  } = useChama();
 
   if (!user) return null;
 
@@ -46,24 +55,35 @@ export default function ProfilePage() {
         {user.member_id ? (
           <Card
             title="Your Chamas"
-            description="Chamas you have opened recently on this device."
+            description="Chamas you are an active member of."
           >
-            {knownChamaIds.length === 0 ? (
+            {isLoadingMyChamas ? (
+              <Spinner />
+            ) : myChamasError ? (
+              <Alert title="Could not load your Chamas">
+                <p>{myChamasError.message}</p>
+                <div className="mt-3">
+                  <Button size="sm" variant="secondary" onClick={refreshMyChamas}>
+                    Retry
+                  </Button>
+                </div>
+              </Alert>
+            ) : myChamas.length === 0 ? (
               <p className="text-sm text-zinc-500">
-                You have not opened any Chama yet. Create one below.
+                You have not created or joined any Chama yet. Create one below.
               </p>
             ) : (
               <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {knownChamaIds.map((chamaId) => (
-                  <li key={chamaId} className="flex items-center justify-between py-2.5">
-                    <span className="font-mono text-xs text-zinc-600">{chamaId.slice(0, 8)}…</span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveChama(chamaId)}
-                      className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                {myChamas.map((chama) => (
+                  <li key={chama.id} className="flex items-center justify-between py-2.5">
+                    <span className="text-sm text-zinc-700 dark:text-zinc-300">{chama.name}</span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setActiveChama(chama.id)}
                     >
                       Open
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>

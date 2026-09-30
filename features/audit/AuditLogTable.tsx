@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
+
 import { useChama } from "@/features/chamas/ChamaContext";
 import { Table, Td } from "@/components/ui/Table";
 import { Badge, StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { useQuery } from "@/lib/query/hooks";
+import { invalidate } from "@/lib/query/cache";
 import { listAuditEvents } from "@/lib/api/audit";
 import { formatDateTime, shortId } from "@/lib/format";
 import type { AuditEventOut } from "@/types/api";
+
+const PAGE_SIZE = 25;
 
 function resourceLabel(resourceType: string) {
   return resourceType
@@ -27,17 +32,32 @@ function truncatedPayload(payload: Record<string, unknown> | null) {
 export function AuditLogTable() {
   const { activeChamaId } = useChama();
   const chamaId = activeChamaId;
+  const [offset, setOffset] = useState(0);
 
   const events = useQuery<AuditEventOut[]>(
-    chamaId ? `${chamaId}:audit-events` : null,
-    async () => (chamaId ? listAuditEvents(chamaId) : [])
+    chamaId ? `${chamaId}:audit-events:${offset}` : null,
+    async () => (chamaId ? listAuditEvents(chamaId, { limit: PAGE_SIZE, offset }) : [])
   );
+
+  const visibleCount = events.data?.length ?? 0;
+  const hasMore = visibleCount >= PAGE_SIZE;
+
+  function refresh() {
+    // Back to the newest page and refetch every cached audit page in the
+    // background so the newest events are reflected.
+    if (chamaId) invalidate(`${chamaId}:audit-events`);
+    setOffset(0);
+  }
+
+  function nextOlder() {
+    setOffset((current) => current + PAGE_SIZE);
+  }
 
   if (events.isLoading) return <TableSkeleton rows={5} cols={6} />;
   if (events.error) {
     return <ErrorState message={events.error.message} onRetry={events.refetch} />;
   }
-  if ((events.data?.length ?? 0) === 0) {
+  if (visibleCount === 0) {
     return (
       <EmptyState
         title="No audit events yet"
@@ -48,10 +68,25 @@ export function AuditLogTable() {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button size="sm" variant="secondary" onClick={events.refetch}>
-          Refresh
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Showing items {offset + 1}–{offset + visibleCount}.
+        </p>
+        <div className="flex items-center gap-2">
+          {offset > 0 ? (
+            <Button size="sm" variant="secondary" onClick={() => setOffset(0)}>
+              Newest
+            </Button>
+          ) : null}
+          {hasMore ? (
+            <Button size="sm" variant="secondary" onClick={nextOlder}>
+              Load older
+            </Button>
+          ) : null}
+          <Button size="sm" variant="secondary" onClick={refresh}>
+            Refresh
+          </Button>
+        </div>
       </div>
       <Table
         head={["When", "Actor", "Action", "Resource", "Result", "Details"]}
