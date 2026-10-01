@@ -12,7 +12,8 @@ import { IntentsList } from "@/features/payments/IntentsList";
 
 export default function PaymentsPage() {
   const { activeChamaId } = useChama();
-  const { isChair } = useMemberRoles(activeChamaId);
+  const { capabilities } = useMemberRoles(activeChamaId);
+  const { canManagePaymentConnections } = capabilities;
 
   return (
     <div>
@@ -29,7 +30,7 @@ export default function PaymentsPage() {
         <IntentsList />
       </Card>
 
-      {isChair ? (
+      {canManagePaymentConnections ? (
         <>
           <Card title="Add a payment provider" className="mb-6">
             <ConnectionForm />

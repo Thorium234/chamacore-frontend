@@ -18,6 +18,7 @@ import {
   waiveRegistrationFee,
 } from "@/lib/api/registration-fees";
 import { formatDate, formatMoney } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { toApiError, getErrorMessage } from "@/lib/api/errors";
 import { FeeHistoryModal } from "@/features/members/FeeHistoryModal";
 import type { MembershipOut } from "@/types/api";
@@ -34,9 +35,16 @@ type ConfirmAction =
 
 export function MembersList() {
   const { activeChamaId } = useChama();
-  const { roles, isChair, isLeadership } = useMemberRoles(activeChamaId);
+  const { capabilities } = useMemberRoles(activeChamaId);
   const chamaId = activeChamaId;
-  const canPayFee = isChair || roles.includes("TREASURER");
+  const {
+    isLeadership,
+    canAssignRoles,
+    canChangeMembershipStatus,
+    canPayRegistrationFee,
+    canWaiveRegistrationFee,
+    canReverseRegistrationFeePayment,
+  } = capabilities;
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [error, setError] = useState<string | null>(null);
@@ -167,7 +175,7 @@ export function MembersList() {
             "Status",
             "Roles",
             isLeadership ? "Registration fee" : "Joined",
-            isChair ? "Actions" : "",
+            canChangeMembershipStatus || canAssignRoles ? "Actions" : "",
           ]}
         >
           {memberships.data?.map((membership) => {
@@ -181,7 +189,7 @@ export function MembersList() {
                       : "—"}
                   </span>
                 </Td>
-                <Td>{membership.member?.phone_number ?? "—"}</Td>
+                <Td>{formatPhone(membership.member?.phone_number)}</Td>
                 <Td>#{membership.membership_number}</Td>
                 <Td>
                   <StatusBadge status={membership.status} />
@@ -191,7 +199,7 @@ export function MembersList() {
                     {membership.roles.map((role) => (
                       <span key={role} className="inline-flex items-center gap-1">
                         <Badge tone={role === "CHAIRPERSON" ? "indigo" : "blue"}>{role}</Badge>
-                        {isChair && LEADERSHIP_ROLES.includes(role) ? (
+                        {canAssignRoles && LEADERSHIP_ROLES.includes(role) ? (
                           <button
                             type="button"
                             aria-label={`Remove ${role} role`}
@@ -209,7 +217,7 @@ export function MembersList() {
                         ) : null}
                       </span>
                     ))}
-                    {isChair && membership.roles.includes("CHAIRPERSON") ? null : isChair ? (
+                    {canAssignRoles && membership.roles.includes("CHAIRPERSON") ? null : canAssignRoles ? (
                       <select
                         aria-label={`Assign role to ${membership.member?.first_name ?? "member"}`}
                         className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs text-zinc-600 focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
@@ -244,7 +252,7 @@ export function MembersList() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm text-zinc-600">{formatMoney(fee.amount)}</span>
                         <StatusBadge status={fee.status} />
-                        {fee.status === "OWED" && canPayFee ? (
+                        {fee.status === "OWED" && canPayRegistrationFee ? (
                           <Button
                             size="sm"
                             variant="secondary"
@@ -253,7 +261,7 @@ export function MembersList() {
                             Pay
                           </Button>
                         ) : null}
-                        {fee.status === "OWED" && isChair ? (
+                        {fee.status === "OWED" && canWaiveRegistrationFee ? (
                           <Button
                             size="sm"
                             variant="secondary"
@@ -262,7 +270,7 @@ export function MembersList() {
                             Waive
                           </Button>
                         ) : null}
-                        {fee.status === "PAID" && isChair ? (
+                        {fee.status === "PAID" && canReverseRegistrationFeePayment ? (
                           <Button
                             size="sm"
                             variant="danger"
@@ -287,7 +295,7 @@ export function MembersList() {
                   <Td>{formatDate(membership.joined_at)}</Td>
                 )}
                 <Td>
-                  {isChair && membership.status === "ACTIVE" ? (
+                  {canChangeMembershipStatus && membership.status === "ACTIVE" ? (
                     <Button
                       size="sm"
                       variant="secondary"
@@ -301,7 +309,7 @@ export function MembersList() {
                     >
                       Deactivate
                     </Button>
-                  ) : isChair && membership.status === "INACTIVE" ? (
+                  ) : canChangeMembershipStatus && membership.status === "INACTIVE" ? (
                     <Button
                       size="sm"
                       variant="secondary"

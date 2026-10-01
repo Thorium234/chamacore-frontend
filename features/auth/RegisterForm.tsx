@@ -57,7 +57,8 @@ export function RegisterForm() {
     >
       <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Create your account</h1>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        Register first, then you can create a Chama and become its chairperson.
+        Your email and password are all we ask for now. To create a Chama you also enter your own
+        member details on the next screen. Joining an existing Chama happens after you sign in.
       </p>
 
       {error ? (
@@ -84,7 +85,7 @@ export function RegisterForm() {
           minLength={8}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          hint="At least 8 characters."
+          hint="At least 8 characters. There is no reset-by-email flow yet, so choose something you can remember."
         />
         <Input
           label="Confirm password"

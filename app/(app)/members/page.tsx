@@ -10,7 +10,8 @@ import { MembersList } from "@/features/members/MembersList";
 
 export default function MembersPage() {
   const { activeChamaId } = useChama();
-  const { isLeadership } = useMemberRoles(activeChamaId);
+  const { capabilities } = useMemberRoles(activeChamaId);
+  const { canAddMembers } = capabilities;
 
   return (
     <div>
@@ -19,7 +20,7 @@ export default function MembersPage() {
         description="Memberships, roles, and registration fees for this Chama."
       />
 
-      {isLeadership ? (
+      {canAddMembers ? (
         <Card title="Add a member" className="mb-6">
           <AddMemberForm />
         </Card>

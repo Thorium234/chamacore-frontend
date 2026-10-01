@@ -16,6 +16,7 @@ import { useQuery } from "@/lib/query/hooks";
 import { getLedgerAccounts, getLedgerHistory } from "@/lib/api/ledger";
 import { listMemberships } from "@/lib/api/memberships";
 import { listContributions } from "@/lib/api/contributions";
+import { MyContributionStatusCard } from "@/features/dashboard/MyContributionStatus";
 import { formatAccountBalance, formatDateTime, formatMoney, formatPeriod } from "@/lib/format";
 
 export default function DashboardPage() {
@@ -51,6 +52,8 @@ export default function DashboardPage() {
       {accounts.error || memberships.error ? (
         <ErrorState message={accounts.error?.message ?? memberships.error?.message} onRetry={accounts.refetch} />
       ) : null}
+
+      <MyContributionStatusCard />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {(accounts.isLoading || accounts.data === undefined) && !accounts.error ? (

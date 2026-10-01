@@ -41,12 +41,13 @@ export function LoginForm() {
     >
       <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Sign in</h1>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        Use the email and password for your ChamaCore account.
+        Sign in with the email and password you registered. Your member number is not needed.
       </p>
 
       {justRegistered ? (
         <Alert tone="success" className="mt-4" title="Account created">
-          You can now sign in with your new account.
+          You can now sign in with your new account, then create a Chama or link the member record
+          leadership added for you.
         </Alert>
       ) : null}
 

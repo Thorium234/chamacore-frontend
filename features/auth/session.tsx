@@ -19,7 +19,7 @@ import {
 } from "@/lib/api/auth";
 import { setSessionExpiredHandler } from "@/lib/api/client";
 import {
-  clearTokens,
+  clearSessionStorage,
   getAccessToken,
   getRefreshToken,
   setTokens,
@@ -68,7 +68,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       } catch {
         // Client already tried one refresh; both the token and session are gone.
-        clearTokens();
+        clearSessionStorage();
+        clearAll();
         if (!cancelled) {
           setUser(null);
           setStatus("unauthenticated");
@@ -79,7 +80,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     void bootstrap();
 
     setSessionExpiredHandler(() => {
-      clearTokens();
+      clearSessionStorage();
+      clearAll();
       if (!cancelled) {
         setUser(null);
         setStatus("unauthenticated");
@@ -126,7 +128,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // Best-effort revocation; local session is cleared regardless.
       }
     }
-    clearTokens();
+    // Wipe every persisted chamacore.* key, not just the tokens: the selected
+    // Chama is per-user state and must not leak to the next account signed in
+    // on this browser.
+    clearSessionStorage();
     clearAll();
     setUser(null);
     setStatus("unauthenticated");

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Alert } from "@/components/ui/Alert";
 import { useSession } from "@/features/auth/session";
 import { getErrorMessage, toApiError } from "@/lib/api/errors";
@@ -42,13 +43,10 @@ export function MemberLinkForm() {
         number and government ID must match what leadership entered when they
         added you.
       </p>
-      <Input
-        label="Phone number"
-        required
-        type="tel"
+      <PhoneInput
         value={phoneNumber}
-        onChange={(event) => setPhoneNumber(event.target.value)}
-        placeholder="+2547XXXXXXXX"
+        onChange={setPhoneNumber}
+        hint="Enter the number leadership used. 07…, 7… and +2547… all match the same member."
       />
       <Input
         label="Government ID"

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Alert } from "@/components/ui/Alert";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { useMutation } from "@/lib/query/hooks";
@@ -64,14 +65,7 @@ export function AddMemberForm() {
           onChange={(event) => setLastName(event.target.value)}
         />
       </div>
-      <Input
-        label="Phone number"
-        required
-        type="tel"
-        value={phoneNumber}
-        onChange={(event) => setPhoneNumber(event.target.value)}
-        placeholder="+2547XXXXXXXX"
-      />
+      <PhoneInput value={phoneNumber} onChange={setPhoneNumber} />
       <Input
         label="Government ID"
         required

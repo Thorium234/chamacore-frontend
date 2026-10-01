@@ -33,9 +33,9 @@ type Action = "approve" | "reject" | "process" | "complete" | "reverse" | null;
 export function PayoutsList() {
   const { activeChamaId } = useChama();
   const { user } = useSession();
-  const { roles, isChair } = useMemberRoles(activeChamaId);
+  const { capabilities } = useMemberRoles(activeChamaId);
   const chamaId = activeChamaId;
-  const canHandleMoney = isChair || roles.includes("TREASURER");
+  const { canApprovePayouts, canProcessPayouts: canHandleMoney } = capabilities;
 
   const [confirmAction, setConfirmAction] = useState<Action>(null);
   const [activePayout, setActivePayout] = useState<PayoutOut | null>(null);
@@ -181,7 +181,7 @@ export function PayoutsList() {
               </Td>
               <Td>
                 <div className="flex flex-wrap items-center gap-2">
-                  {payout.status === "REQUESTED" && isChair && !selfTarget ? (
+                  {payout.status === "REQUESTED" && canApprovePayouts && !selfTarget ? (
                     <>
                       <Button
                         size="sm"
@@ -241,7 +241,7 @@ export function PayoutsList() {
                       </Button>
                     </>
                   ) : null}
-                  {payout.status === "COMPLETED" && isChair ? (
+                  {payout.status === "COMPLETED" && canApprovePayouts ? (
                     <Button
                       size="sm"
                       variant="danger"

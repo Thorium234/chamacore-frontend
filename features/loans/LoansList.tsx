@@ -36,9 +36,9 @@ type Action =
 export function LoansList() {
   const { activeChamaId } = useChama();
   const { user } = useSession();
-  const { roles, isChair } = useMemberRoles(activeChamaId);
+  const { capabilities } = useMemberRoles(activeChamaId);
   const chamaId = activeChamaId;
-  const canManageRepayments = isChair || roles.includes("TREASURER");
+  const { canApproveLoans, canRecordLoanRepayments: canManageRepayments } = capabilities;
 
   const [confirmAction, setConfirmAction] = useState<Action>(null);
   const [activeLoan, setActiveLoan] = useState<LoanOut | null>(null);
@@ -176,7 +176,7 @@ export function LoansList() {
                       Submit
                     </Button>
                   ) : null}
-                  {loan.status === "SUBMITTED" && isChair && !isSelfTarget ? (
+                  {loan.status === "SUBMITTED" && canApproveLoans && !isSelfTarget ? (
                     <>
                       <Button
                         size="sm"
@@ -200,7 +200,7 @@ export function LoansList() {
                       </Button>
                     </>
                   ) : null}
-                  {loan.status === "APPROVED" && isChair ? (
+                  {loan.status === "APPROVED" && canApproveLoans ? (
                     <>
                       <Button
                         size="sm"

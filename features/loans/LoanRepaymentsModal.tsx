@@ -25,8 +25,11 @@ export function LoanRepaymentsModal({
   loan: LoanOut;
   onClose: () => void;
 }) {
-  const { roles, isChair } = useMemberRoles(chamaId);
-  const canRecord = isChair || roles.includes("TREASURER");
+  const { capabilities } = useMemberRoles(chamaId);
+  const {
+    canRecordLoanRepayments: canRecord,
+    canReverseLoanRepayments: canReverse,
+  } = capabilities;
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -184,7 +187,7 @@ export function LoanRepaymentsModal({
                     <StatusBadge status={repayment.status} />
                   </Td>
                   <Td align="right">
-                    {isChair && repayment.status === "CONFIRMED" ? (
+                    {canReverse && repayment.status === "CONFIRMED" ? (
                       <Button
                         size="sm"
                         variant="secondary"

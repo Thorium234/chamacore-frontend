@@ -18,15 +18,26 @@ import {
   confirmContribution,
   listContributions,
   reverseContribution,
+  type ContributionFilters,
 } from "@/lib/api/contributions";
 import { listMemberships } from "@/lib/api/memberships";
+import { moneyScopeKeys } from "@/lib/query/money-scope";
 import { formatDateTime, formatMoney, formatPeriod, shortId } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { ContributionOut, MembershipOut } from "@/types/api";
 
-export function ContributionList() {
+export function ContributionList({
+  filters = {},
+  cacheKey,
+}: {
+  /** Server-side filters; the API applies them so we never filter money client-side. */
+  filters?: ContributionFilters;
+  /** Cache key override so each filter combination caches independently. */
+  cacheKey?: string;
+}) {
   const { activeChamaId } = useChama();
-  const { isChair } = useMemberRoles(activeChamaId);
+  const { capabilities } = useMemberRoles(activeChamaId);
+  const canSettle = capabilities.canSettleContributions;
   const chamaId = activeChamaId;
 
   const [confirmTarget, setConfirmTarget] = useState<ContributionOut | null>(null);
@@ -35,8 +46,8 @@ export function ContributionList() {
   const [reverseError, setReverseError] = useState<string | null>(null);
 
   const contributions = useQuery<ContributionOut[]>(
-    chamaId ? `${chamaId}:contributions` : null,
-    async () => (chamaId ? listContributions(chamaId) : [])
+    chamaId ? (cacheKey ?? `${chamaId}:contributions`) : null,
+    async () => (chamaId ? listContributions(chamaId, filters) : [])
   );
   const memberships = useQuery<MembershipOut[]>(
     chamaId ? `${chamaId}:memberships` : null,
@@ -59,9 +70,9 @@ export function ContributionList() {
     );
   };
 
-  const invalidations = chamaId
-    ? [`${chamaId}:contributions`, `${chamaId}:ledger`, `${chamaId}:shares`]
-    : [];
+  // Settling a contribution moves money: refresh every money-affected view, not
+  // just this list, so shares and ledger balances on screen are never stale.
+  const invalidations = chamaId ? moneyScopeKeys(chamaId) : [];
 
   const confirmMutation = useMutation(
     async () => {
@@ -89,11 +100,19 @@ export function ContributionList() {
         <ErrorState message={contributions.error.message} onRetry={contributions.refetch} />
       ) : (contributions.data?.length ?? 0) === 0 ? (
         <EmptyState
-          title="No contributions recorded"
-          description="Record the first contribution for a period to get started."
+          title={
+            filters.membership_id || filters.period || filters.status
+              ? "No contributions match these filters"
+              : "No contributions recorded"
+          }
+          description={
+            filters.membership_id || filters.period || filters.status
+              ? "Try widening or clearing the filters above."
+              : "Record the first contribution for a period to get started."
+          }
         />
       ) : (
-        <Table head={["Member", "Period", "Amount", "Status", "Recorded", isChair ? "Actions" : "Note"]}>
+        <Table head={["Member", "Period", "Amount", "Status", "Recorded", canSettle ? "Actions" : "Note"]}>
           {contributions.data?.map((contribution) => (
             <tr key={contribution.id}>
               <Td>{memberForContribution(contribution)}</Td>
@@ -103,7 +122,7 @@ export function ContributionList() {
                 <StatusBadge status={contribution.status} />
               </Td>
               <Td>{formatDateTime(contribution.created_at)}</Td>
-              {isChair ? (
+              {canSettle ? (
                 <Td>
                   <div className="flex flex-wrap items-center gap-2">
                     {contribution.status === "PENDING" ? (

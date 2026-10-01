@@ -6,6 +6,7 @@ import { useChama } from "@/features/chamas/ChamaContext";
 import { createChama } from "@/lib/api/chamas";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Field";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Alert } from "@/components/ui/Alert";
 import { toApiError, getErrorMessage } from "@/lib/api/errors";
 import type { ChamaOut } from "@/types/api";
@@ -109,14 +110,7 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
             onChange={(event) => setLastName(event.target.value)}
           />
         </div>
-        <Input
-          label="Phone number"
-          required
-          type="tel"
-          value={phoneNumber}
-          onChange={(event) => setPhoneNumber(event.target.value)}
-          placeholder="+2547XXXXXXXX"
-        />
+        <PhoneInput value={phoneNumber} onChange={setPhoneNumber} />
         <Input
           label="Government ID"
           required

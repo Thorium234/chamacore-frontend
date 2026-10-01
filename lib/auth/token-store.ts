@@ -19,6 +19,13 @@
 const ACCESS_TOKEN_KEY = "chamacore.access_token";
 const REFRESH_TOKEN_KEY = "chamacore.refresh_token";
 
+/**
+ * Every browser-persisted key this app owns. Session-scoped keys (tokens, the
+ * selected Chama) must never survive a logout, otherwise the next person to
+ * sign in on a shared device inherits the previous member's Chama selection.
+ */
+const STORAGE_NAMESPACE = "chamacore.";
+
 interface StoredTokens {
   access_token: string | null;
   refresh_token: string | null;
@@ -62,4 +69,24 @@ export function clearTokens(): void {
   if (!storage) return;
   storage.removeItem(ACCESS_TOKEN_KEY);
   storage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * Wipe every `chamacore.*` key, not just the tokens. Called on logout and on
+ * session expiry so no per-user state (the selected Chama) leaks between
+ * accounts on the same browser.
+ */
+export function clearSessionStorage(): void {
+  const storage = safeLocalStorage();
+  if (!storage) return;
+  try {
+    const keys: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key && key.startsWith(STORAGE_NAMESPACE)) keys.push(key);
+    }
+    for (const key of keys) storage.removeItem(key);
+  } catch {
+    // Storage unavailable or blocked; there is nothing left to clear.
+  }
 }

@@ -9,6 +9,7 @@ import { useChama } from "@/features/chamas/ChamaContext";
 import { useSession } from "@/features/auth/session";
 import { useMutation, useQuery } from "@/lib/query/hooks";
 import { refetchEntry } from "@/lib/query/cache";
+import { moneyScopeKeys } from "@/lib/query/money-scope";
 import { createPaymentIntent, initiatePaymentIntent, listPaymentConnections } from "@/lib/api/payments";
 import { listMemberships } from "@/lib/api/memberships";
 import { getErrorMessage, toApiError } from "@/lib/api/errors";
@@ -39,6 +40,7 @@ export function PaymentForm() {
   const [membershipId, setMembershipId] = useState("");
   const [amount, setAmount] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [pushedAmount, setPushedAmount] = useState<string | null>(null);
 
   // One idempotency key per logical submit action — kept stable across retries.
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -64,9 +66,13 @@ export function PaymentForm() {
       });
     },
     {
-      invalidates: chamaId ? [`${chamaId}:payment-intents`] : [],
+      // An STK push does not settle the contribution by itself — the provider
+      // callback does. Refresh every money-affected view so nothing on screen
+      // claims a balance the API has not actually settled.
+      invalidates: chamaId ? moneyScopeKeys(chamaId) : [],
       onSuccess: () => {
         idempotencyKeyRef.current = null;
+        setPushedAmount(amount);
       },
     }
   );
@@ -74,6 +80,8 @@ export function PaymentForm() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isPending || !chamaId) return;
+
+    setPushedAmount(null);
 
     const resolvedMembershipId =
       myMemberships.some((m) => m.id === membershipId)
@@ -84,7 +92,7 @@ export function PaymentForm() {
       setFormError("Select the membership you are paying as first.");
       return;
     }
-    if (!/^\d+(\.\d{1,2})?$/.test(amount)) {
+    if (!/^\d+(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) {
       setFormError("Enter a valid amount in KES, e.g. 1500 or 1500.00.");
       return;
     }
@@ -113,6 +121,11 @@ export function PaymentForm() {
       ? membershipId
       : (myMemberships[0]?.id ?? "");
 
+  // Double-submit protection plus real validity: never let a request be created
+  // with a blank membership or a non-numeric amount.
+  const amountIsValid = /^\d+(\.\d{1,2})?$/.test(amount) && Number(amount) > 0;
+  const canSubmit = Boolean(effectiveMembershipId) && amountIsValid && !isPending;
+
   return (
     <>
       {!myMemberId ? (
@@ -139,6 +152,20 @@ export function PaymentForm() {
                 intents” and use Refresh to reconcile before initiating again —
                 a retry reuses the same idempotency key, so a duplicate is
                 rejected safely.
+              </p>
+            </Alert>
+          ) : pushedAmount ? (
+            <Alert tone="success" title="Payment request sent">
+              <p>
+                We pushed an M-Pesa request for{" "}
+                <strong>{formatMoney(pushedAmount)}</strong> to your registered
+                phone number.
+              </p>
+              <p className="mt-1">
+                Your contribution and shares update only after M-Pesa confirms
+                the payment, usually within seconds. Until then the contribution
+                stays <strong>PENDING</strong> — this is normal, not a failure.
+                Use Refresh on “Payment intents” to check the outcome.
               </p>
             </Alert>
           ) : formError ? (
@@ -187,9 +214,14 @@ export function PaymentForm() {
             will be sent to your registered phone number.
           </p>
 
-          <Button type="submit" loading={isPending}>
+          <Button type="submit" loading={isPending} disabled={!canSubmit}>
             Pay {amount ? formatMoney(amount) : "your contribution"}
           </Button>
+          {!amountIsValid && amount.length > 0 ? (
+            <p className="text-xs text-zinc-500">
+              Enter a positive amount with up to two decimals, e.g. 1500.00.
+            </p>
+          ) : null}
         </form>
       )}
     </>

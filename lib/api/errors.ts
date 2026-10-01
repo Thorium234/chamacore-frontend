@@ -39,6 +39,12 @@ const STATUS_TO_KIND: Record<number, ApiErrorKind> = {
   503: "service_unavailable",
 };
 
+const GENERIC_MESSAGE = "The request could not be completed.";
+
+/** Fallback wording when the backend's own 403 detail was not human-readable. */
+const PERMISSION_MESSAGE =
+  "Your role in this Chama does not allow that action. Ask the chairperson if you believe it should.";
+
 function messageFromUnknown(detail: unknown): string {
   if (typeof detail === "string") return detail;
   if (detail && typeof detail === "object") {
@@ -50,7 +56,7 @@ function messageFromUnknown(detail: unknown): string {
     const first = detail[0] as { msg?: unknown; loc?: unknown };
     if (typeof first?.msg === "string") return first.msg;
   }
-  return "The request could not be completed.";
+  return GENERIC_MESSAGE;
 }
 
 function codeFromPayload(detail: unknown): string | null {
@@ -88,6 +94,11 @@ export function getErrorMessage(error: unknown): string {
   return "Something went wrong.";
 }
 
+/** True when the API refused on authorization grounds (HTTP 403). */
+export function isPermissionDenied(error: unknown): boolean {
+  return isApiError(error) && error.kind === "permission_denied";
+}
+
 export function toApiError(error: unknown): ApiError {
   if (isApiError(error)) return error;
 
@@ -122,11 +133,16 @@ export function toApiError(error: unknown): ApiError {
           "Could not reach the ChamaCore server. Check your connection and try again.",
       };
     }
+    const kind = STATUS_TO_KIND[status] ?? "unknown";
+    const message = messageFromUnknown(rawDetail);
     return {
-      kind: STATUS_TO_KIND[status] ?? "unknown",
+      kind,
       status,
       code: codeFromPayload(rawDetail),
-      message: messageFromUnknown(rawDetail),
+      message:
+        kind === "permission_denied" && message === GENERIC_MESSAGE
+          ? PERMISSION_MESSAGE
+          : message,
       issues: issuesFromDetail(rawDetail),
     };
   }

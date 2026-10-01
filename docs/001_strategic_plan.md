@@ -212,3 +212,61 @@ For each backend phase, frontend needs:
 - Whether chair “my shares” is `GET .../shares?membership_id=` or embedded in dashboard DTO  
 
 Until B1 is done, UI can only improve messaging; it cannot invent share rows.
+
+---
+
+## 9. Implementation status (backend reality check)
+
+Recorded against the live backend source in `pybased/chamacore`, not against this plan's assumptions.
+
+### 9.1 Shipped in the frontend
+
+| Workstream | State | Notes |
+|---|---|---|
+| F0 Trust the money path | **Done** | `lib/query/money-scope.ts` centralizes the invalidation set (contributions, shares, ledger, payment-intents, audit-events, memberships). Every money mutation — contribution confirm/reverse, STK/C2B intent, manual entry — refreshes the whole scope so no screen can show stale money. `features/dashboard/MyContributionStatus.tsx` closes the F0.3 gap: when a payment is `SUCCEEDED` but the current period is still `PENDING`, it says so explicitly instead of leaving the member guessing. |
+| F1 Auth UX | **Done (honest scope)** | Register/login copy now matches the real contract: email + password only, no OTP, no password-reset. Member linking keeps phone + government ID. |
+| F2 Role-based shell | **Done** | `features/roles/useMemberRoles.ts` exposes a `ChamaCapabilities` matrix verified line-by-line against `app/services/*.py`. Nav is split into **Overview** (every active member) and **Manage** (leadership). `features/roles/AccessDenied.tsx` explains the *actual* requirement per capability. All ad-hoc `roles.includes(...)` checks were replaced by matrix lookups. |
+| F4 Payments UX | **Done** | STK submit is validated before dispatch and the settlement window is described honestly. `lib/api/errors.ts` now yields a permission-specific message for a 403 whose `detail` is not human-readable. |
+| F5 Manual entry | **Done** | Manual contribution form retained. Payment-date entry remains blocked (see 9.3). |
+| F6 Transparency | **Done (read-only)** | New `/activity` page: group balances (from ledger accounts), group contributions with member/period/status filters, Chama-wide share units, and ledger history. No client-side money math anywhere. |
+
+### 9.2 New backend capabilities found during implementation
+
+Discovered by reading the backend, not mentioned in this plan:
+
+1. **`GET /chamas/{chama_id}/shares`** — Chama-wide share records. Previously the plan assumed shares were only reachable per membership.
+2. **Contribution query filters** — `membership_id`, `period`, `status`, `limit`, `offset` on the contributions list.
+3. **Kenyan phone normalization** — `app/core/phone.py` folds `07…`, `7…`, `+2547…` to `254…` on write, and member-link already matches across variants. `lib/phone.ts` mirrors it for preview/display only.
+
+These three were **uncommitted working-tree changes in the backend at the time of writing.** The frontend therefore degrades safely rather than assuming they exist:
+
+- Group-wide shares fall back to per-membership fetching on 404/405.
+- `MyContributionStatus` verifies the server honoured `membership_id` (any foreign `membership_id` in the response means it was ignored) and narrows locally, so an older backend cannot leak other members' contributions into a "my contributions" view.
+
+### 9.3 Blocked — exact backend ask required
+
+Nothing below is faked in the UI. Each needs a backend contract first.
+
+| Plan item | Blocking gap | Ask |
+|---|---|---|
+| F3 Platform admin dashboard | No platform-admin role, no `GET /platform/chamas`, no chama lifecycle endpoints | Platform-admin role on `UserOut`, a platform-scoped dependency, and chama activate/suspend endpoints |
+| F1 change-password gate | No `must_change_password` flag on `UserOut`, no change-password endpoint | Add the flag, a `POST /auth/me/password` endpoint, and define which flows are blocked until it is cleared |
+| F1 OTP / 2FA | No OTP endpoints, no enrollment fields | Enrollment, challenge, and verify endpoints plus challenge state on the user |
+| F4 alternate payer phone | `PaymentIntentCreate` has no payer phone field | Add `phone_number` (normalized like `MemberDetails.phone_number`) to the intent-create schema |
+| F7 Statements PDF | No statement or PDF endpoint | `GET /chamas/{id}/statements?...` returning a PDF, or signed-URL download. Client-side rendering stays out of scope |
+| F8 Profile & branding | No avatar/logo upload, no profile-update endpoint | Upload endpoint (presigned or multipart) and `PATCH /chamas/{id}` fields for name/logo |
+| F9 Notifications UI | No notifications API | Notification list + read-state endpoints |
+| F5 manual payment date | `ContributionCreate` has no date field | Add an optional `payment_date` so back-dated entries are possible |
+
+### 9.4 Role matrix verified against the backend
+
+Every capability in `useMemberRoles.ts` traces to a `require_role` / `require_roles` call:
+
+- Leadership (chair/treasurer/secretary): create membership — `membership.py:73`
+- Chair only: membership status `membership.py:126`; role assign/remove `role.py:42,77`; chama update `chama.py:95`; contribution confirm/reverse `contribution.py:86,160`; fee waive `registration_fee.py:60`; fee payment reverse `registration_fee.py:145`; payment connections `payment_connection.py:77`; loan approve/reject/cancel/disburse `loan.py:135,154,172,199`; loan repayment reverse `loan.py:346`; payout approve/reject/reverse `payout.py:91,111,228`
+- Chair or treasurer: record contribution `contribution.py:50`; pay registration fee `registration_fee.py:88`; loan repayment `loan.py:269`; payout process/complete/fail `payout.py:128,155,209`
+
+Two behaviours the UI must respect and now does:
+
+- **No self-approval.** `_forbid_self_action` in `payout.py:271` and `loan.py:252` means a chair cannot approve their own payout or loan. Both lists already hide those actions for the requester.
+- **Anyone active can apply.** `loan.apply` (`loan.py:80`) and `payout.request_payout` (`payout.py:52`) have no role guard, so those forms are intentionally not capability-gated.
