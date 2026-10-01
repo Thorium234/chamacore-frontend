@@ -49,6 +49,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Generate route types
+        # app/layout.tsx uses LayoutProps<"/">, which Next.js generates into
+        # .next/types and wires up through next-env.d.ts. On a fresh checkout
+        # .next/ does not exist, so type check fails with TS2304 until these
+        # are generated. Generating them here also makes the step fast, since
+        # it skips the full build.
+        run: npx next typegen
+
       - name: Type check
         # No "typecheck" script exists yet, so call the local compiler directly.
         run: npx tsc --noEmit
