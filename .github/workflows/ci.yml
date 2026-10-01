@@ -1,0 +1,61 @@
+# Continuous Integration for ChamaCore Frontend.
+#
+# Validates every push and pull request targeting main before it can be merged:
+# dependency install, lint, TypeScript type check and a real production build.
+# This workflow intentionally does NOT deploy anything - add a separate deploy
+# job (and its secrets) once the hosting target is decided.
+
+name: Next.js CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel a superseded run when the same branch/PR receives a new push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Lint, type check and build
+    runs-on: ubuntu-latest
+    # Fail instead of hanging if a step stalls (lint is slow on cold caches).
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Next.js 16 requires Node.js >= 20.9; 22 is the current LTS.
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        # npm ci installs the exact versions in package-lock.json and fails if
+        # the lockfile is out of sync with package.json.
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        # No "typecheck" script exists yet, so call the local compiler directly.
+        run: npx tsc --noEmit
+
+      - name: Build
+        # Build with no NEXT_PUBLIC_API_BASE_URL: lib/api/client.ts falls back to
+        # http://localhost:8000. A future deploy job MUST pass the real API URL
+        # here, because NEXT_PUBLIC_* values are inlined into the bundle at
+        # build time.
+        run: npm run build
