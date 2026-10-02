@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Spinner } from "@/components/ui/States";
 import { MemberLinkForm } from "@/features/auth/MemberLinkForm";
+import { ChangePasswordForm } from "@/features/auth/ChangePasswordForm";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
 import { formatDate } from "@/lib/format";
 
@@ -95,6 +96,14 @@ export default function ProfilePage() {
           </Card>
         )}
       </div>
+
+      <Card
+        title="Password"
+        description="Changing your password signs out every other session on this account."
+        className="mt-6"
+      >
+        <ChangePasswordForm />
+      </Card>
 
       <Card title="Create a new Chama" className="mt-6">
         <CreateChamaForm />

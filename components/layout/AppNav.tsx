@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { cx } from "@/components/ui/cx";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { useMemberRoles } from "@/features/roles/useMemberRoles";
+import { usePlatformAdmin } from "@/features/platform/usePlatformAdmin";
 import type { ChamaCapabilities } from "@/features/roles/useMemberRoles";
 
 export interface NavItem {
@@ -18,6 +19,12 @@ export interface NavItem {
    * can read every Chama page. Only management surfaces are gated here.
    */
   requires?: keyof ChamaCapabilities;
+  /**
+   * Global (platform-scoped) gate, used only for the admin console. Resolved by
+   * probing `/platform/stats` because the backend exposes no such flag on the
+   * user. Distinct from `requires`: this role is not a Chama membership role.
+   */
+  requiresPlatformAdmin?: boolean;
 }
 
 export interface NavSection {
@@ -42,6 +49,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/loans", label: "Loans" },
       { href: "/payouts", label: "Payouts" },
       { href: "/payments", label: "Payments" },
+      { href: "/statements", label: "Statements" },
+      { href: "/notifications", label: "Notifications" },
       { href: "/profile", label: "Profile" },
     ],
   },
@@ -50,6 +59,16 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/members", label: "Members", requires: "isLeadership" },
       { href: "/audit", label: "Audit log", requires: "isLeadership" },
+    ],
+  },
+  {
+    title: "Platform",
+    items: [
+      {
+        href: "/platform",
+        label: "Administration",
+        requiresPlatformAdmin: true,
+      },
     ],
   },
 ];
@@ -97,15 +116,24 @@ export function NavLinkList({
 }) {
   const { activeChamaId } = useChama();
   const { capabilities, isLoading } = useMemberRoles(activeChamaId);
+  const { isAdmin: isPlatformAdmin, isChecking: isCheckingAdmin } = usePlatformAdmin();
 
   // While the memberships list loads we cannot know the caller's roles, so show
   // every entry rather than flashing a collapsed nav and then re-flowing the
   // layout. The backend still rejects anything the user may not do.
+  //
+  // The platform probe is treated the same way: showing the entry until the
+  // probe resolves avoids a link that appears seconds after load. It is the one
+  // gate where we briefly show something the user may not have — the route
+  // itself refuses non-admins.
+  const pending = isLoading || isCheckingAdmin;
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter(
-      (item) => isLoading || !item.requires || capabilities[item.requires]
-    ),
+    items: section.items.filter((item) => {
+      if (pending) return true;
+      if (item.requiresPlatformAdmin) return isPlatformAdmin;
+      return !item.requires || capabilities[item.requires];
+    }),
   })).filter((section) => section.items.length > 0);
 
   if (orientation === "horizontal") {

@@ -22,7 +22,7 @@ import {
 } from "@/lib/api/contributions";
 import { listMemberships } from "@/lib/api/memberships";
 import { moneyScopeKeys } from "@/lib/query/money-scope";
-import { formatDateTime, formatMoney, formatPeriod, shortId } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney, formatPeriod, shortId } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { ContributionOut, MembershipOut } from "@/types/api";
 
@@ -121,7 +121,17 @@ export function ContributionList({
               <Td>
                 <StatusBadge status={contribution.status} />
               </Td>
-              <Td>{formatDateTime(contribution.created_at)}</Td>
+              <Td>
+                <span className="block">{formatDateTime(contribution.created_at)}</span>
+                {contribution.payment_date ? (
+                  <span
+                    className="block text-xs text-zinc-400"
+                    title="Payment date recorded with the contribution"
+                  >
+                    paid {formatDate(contribution.payment_date)}
+                  </span>
+                ) : null}
+              </Td>
               {canSettle ? (
                 <Td>
                   <div className="flex flex-wrap items-center gap-2">

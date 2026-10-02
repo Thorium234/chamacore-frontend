@@ -14,6 +14,7 @@ export function LoginForm() {
   const { login } = useSession();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "1";
+const passwordChanged = searchParams.get("password_changed") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -48,6 +49,13 @@ export function LoginForm() {
         <Alert tone="success" className="mt-4" title="Account created">
           You can now sign in with your new account, then create a Chama or link the member record
           leadership added for you.
+        </Alert>
+      ) : null}
+
+      {passwordChanged ? (
+        <Alert tone="success" className="mt-4" title="Password changed">
+          Your password was updated and every other session was signed out. Sign in again with your
+          new password.
         </Alert>
       ) : null}
 

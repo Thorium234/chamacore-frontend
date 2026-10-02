@@ -224,11 +224,14 @@ Recorded against the live backend source in `pybased/chamacore`, not against thi
 | Workstream | State | Notes |
 |---|---|---|
 | F0 Trust the money path | **Done** | `lib/query/money-scope.ts` centralizes the invalidation set (contributions, shares, ledger, payment-intents, audit-events, memberships). Every money mutation — contribution confirm/reverse, STK/C2B intent, manual entry — refreshes the whole scope so no screen can show stale money. `features/dashboard/MyContributionStatus.tsx` closes the F0.3 gap: when a payment is `SUCCEEDED` but the current period is still `PENDING`, it says so explicitly instead of leaving the member guessing. |
-| F1 Auth UX | **Done (honest scope)** | Register/login copy now matches the real contract: email + password only, no OTP, no password-reset. Member linking keeps phone + government ID. |
+| F1 Auth UX | **Done (honest scope)** | Register/login copy matches the real contract: email + password only, no OTP, no password-reset. Member linking keeps phone + government ID. A forced password gate is now live (see 9.2.4). |
 | F2 Role-based shell | **Done** | `features/roles/useMemberRoles.ts` exposes a `ChamaCapabilities` matrix verified line-by-line against `app/services/*.py`. Nav is split into **Overview** (every active member) and **Manage** (leadership). `features/roles/AccessDenied.tsx` explains the *actual* requirement per capability. All ad-hoc `roles.includes(...)` checks were replaced by matrix lookups. |
-| F4 Payments UX | **Done** | STK submit is validated before dispatch and the settlement window is described honestly. `lib/api/errors.ts` now yields a permission-specific message for a 403 whose `detail` is not human-readable. |
-| F5 Manual entry | **Done** | Manual contribution form retained. Payment-date entry remains blocked (see 9.3). |
+| F3 Platform admin dashboard | **Done** | `/platform` console: platform stats, Chama search with audited status transitions, user search, platform-admin grant/revoke, and force-password-reset. Gated by `features/platform/RequirePlatformAdmin.tsx`. |
+| F4 Payments UX | **Done** | STK submit is validated before dispatch and the settlement window is described honestly. `lib/api/errors.ts` yields a permission-specific message for a 403 whose `detail` is not human-readable. Optional alternate payer number supported. |
+| F5 Manual entry | **Done** | Manual contribution form retained; optional `payment_date` added for cash/bank entries (see 9.2.6). |
 | F6 Transparency | **Done (read-only)** | New `/activity` page: group balances (from ledger accounts), group contributions with member/period/status filters, Chama-wide share units, and ledger history. No client-side money math anywhere. |
+| F7 Statements PDF | **Done** | `/statements` downloads a server-rendered PDF, scoped to the caller's own statement by default. |
+| F9 Notifications UI | **Done** | Header bell with unread badge + polling, plus a full `/notifications` inbox (unread filter, mark read, mark all read, delete). |
 
 ### 9.2 New backend capabilities found during implementation
 
@@ -238,25 +241,51 @@ Discovered by reading the backend, not mentioned in this plan:
 2. **Contribution query filters** — `membership_id`, `period`, `status`, `limit`, `offset` on the contributions list.
 3. **Kenyan phone normalization** — `app/core/phone.py` folds `07…`, `7…`, `+2547…` to `254…` on write, and member-link already matches across variants. `lib/phone.ts` mirrors it for preview/display only.
 
-These three were **uncommitted working-tree changes in the backend at the time of writing.** The frontend therefore degrades safely rather than assuming they exist:
+These three were uncommitted working-tree changes in the backend when this plan was written, and have since shipped. The frontend still degrades safely rather than assuming they exist:
 
 - Group-wide shares fall back to per-membership fetching on 404/405.
 - `MyContributionStatus` verifies the server honoured `membership_id` (any foreign `membership_id` in the response means it was ignored) and narrows locally, so an older backend cannot leak other members' contributions into a "my contributions" view.
 
-### 9.3 Blocked — exact backend ask required
+### 9.2.1 Capabilities added by backend commit `a541db7`
+
+Verified against backend source, not against the verification report — the report is wrong on some points (see 9.3.1). These six gaps are now closed and implemented:
+
+1. **Statements PDF** — `GET /chamas/{chama_id}/statements?from=&to=&membership_id=`. Returns an `application/pdf` blob only (no JSON variant). Members default to their own statement; chair/treasurer may target one member or the whole Chama. Implemented in `lib/api/statements.ts` + `features/statements/StatementDownload.tsx`; the filename is parsed from `Content-Disposition`.
+2. **Notifications** — `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/{id}/read`, `POST /notifications/read-all`, `DELETE /notifications/{id}`. `NotificationOut` carries `action`, `title`, `body`, `resource_type`, `resource_id`, `payload`, `is_read`. No badge or deep-link field exists, so the inbox links by `resource_type`/`resource_id` only.
+3. **Platform administration** — `GET /platform/stats`, `GET /platform/chamas`, `PATCH /platform/chamas/{id}/status`, `GET /platform/users`, `POST`/`DELETE /platform/users/{id}/roles`, `POST /platform/users/{id}/require-password-change`. All are global, not Chama-scoped.
+4. **Forced password change** — `must_change_password` on both `TokenOut` and `UserOut`, plus `POST /auth/change-password` (`{ current_password, new_password }`). The endpoint revokes every refresh token but leaves the current access token valid, and **no backend dependency enforces the flag**. `components/layout/AppShell.tsx` therefore gates the entire app chrome on it, and the form also appears on `/profile` as a voluntary action.
+5. **Alternate payer phone** — `phone_number` on `PaymentIntentCreate`, echoed back as `requested_phone` on `PaymentIntentOut`. Omitting it charges the member's registered number (`app/services/payment_intent.py`). Shown on the pay form and on each intent row.
+6. **Manual contribution payment date** — optional `payment_date` on `ContributionCreate`/`ContributionOut`, defaulting to the recording date. Surfaced in the contribution list under the recorded-at timestamp.
+
+### 9.2.2 Design notes for the new work
+
+- **`PLATFORM_ADMIN` is not a Chama role.** It lives in `user_platform_roles` and the backend filters it out of membership role lists (`app/services/role.py:28`). `types/api.ts` keeps it as a separate `PlatformRoleName` so it can never leak into the Chama capability matrix.
+- **Platform admin discovery is a probe.** No endpoint reports the caller's platform role, so `features/platform/usePlatformAdmin.ts` calls `GET /platform/stats` and treats a 403 as "not an admin". The route itself is guarded by `RequirePlatformAdmin` *before* its data queries mount, so an unauthorized user triggers no data request.
+- **`/platform` is a global route.** It does not require an active Chama, otherwise a platform admin who belongs to no Chama would be trapped on the onboarding screen and could never reach the console (`GLOBAL_ROUTES` in `AppShell.tsx`).
+- **Notifications poll.** `lib/query/hooks.ts` gained `UseQueryOptions.refetchInterval`; the bell uses it. There is no push channel.
+
+### 9.3 Still blocked — exact backend ask required
 
 Nothing below is faked in the UI. Each needs a backend contract first.
 
 | Plan item | Blocking gap | Ask |
 |---|---|---|
-| F3 Platform admin dashboard | No platform-admin role, no `GET /platform/chamas`, no chama lifecycle endpoints | Platform-admin role on `UserOut`, a platform-scoped dependency, and chama activate/suspend endpoints |
-| F1 change-password gate | No `must_change_password` flag on `UserOut`, no change-password endpoint | Add the flag, a `POST /auth/me/password` endpoint, and define which flows are blocked until it is cleared |
 | F1 OTP / 2FA | No OTP endpoints, no enrollment fields | Enrollment, challenge, and verify endpoints plus challenge state on the user |
-| F4 alternate payer phone | `PaymentIntentCreate` has no payer phone field | Add `phone_number` (normalized like `MemberDetails.phone_number`) to the intent-create schema |
-| F7 Statements PDF | No statement or PDF endpoint | `GET /chamas/{id}/statements?...` returning a PDF, or signed-URL download. Client-side rendering stays out of scope |
+| F1 flexible identifier login | `POST /auth/token` is still `OAuth2PasswordRequestForm` keyed on email | A JSON login accepting one `identifier` (email / phone / national ID). The strategic plan proposes this; the backend has not adopted it, so the login form stays email-only |
 | F8 Profile & branding | No avatar/logo upload, no profile-update endpoint | Upload endpoint (presigned or multipart) and `PATCH /chamas/{id}` fields for name/logo |
-| F9 Notifications UI | No notifications API | Notification list + read-state endpoints |
-| F5 manual payment date | `ContributionCreate` has no date field | Add an optional `payment_date` so back-dated entries are possible |
+| F3 caller-role discovery | `/auth/me` never reports platform-admin status, so the UI must probe `GET /platform/stats` | Include `platform_roles` on `UserOut` (or a `/platform/me`) so the shell can gate without a speculative request |
+| F9 richer notifications | `NotificationOut` has no badge/severity/target-URL field | Add explicit link/badge fields if notification items are meant to deep-link |
+| F9 push delivery | List/polling only | A push channel (SSE or WebSocket) if unread counts must update without polling |
+
+#### 9.3.1 Where the verification report is wrong
+
+`BACKEND_FRONTEND_VERIFICATION_REPORT_20261002.md` was checked line-by-line against source. Backend source wins; do not "fix" the frontend to match the report.
+
+| Report claim | Actual |
+|---|---|
+| No logout endpoint | `POST /auth/logout` exists and revokes the refresh token (idempotent) |
+| Chama status update is `POST` | `PATCH /platform/chamas/{id}/status` |
+| Payer phone / payment date / `must_change_password` / notifications / statements do not exist | All shipped in `a541db7` |
 
 ### 9.4 Role matrix verified against the backend
 

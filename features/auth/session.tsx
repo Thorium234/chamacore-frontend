@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import {
+  changePassword as changePasswordApi,
   getMe,
   linkMeToMember,
   login as loginApi,
@@ -36,10 +37,17 @@ type SessionStatus = "loading" | "authenticated" | "unauthenticated";
 interface SessionContextValue {
   status: SessionStatus;
   user: UserOut | null;
+  /**
+   * Server-driven password-change gate. The backend does not enforce this on any
+   * dependency (`app/api/deps.py:68`), so the app shell reads it and blocks the
+   * app until the password is changed.
+   */
+  mustChangePassword: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<UserOut>;
   linkMember: (payload: MemberLinkPayload) => Promise<UserOut>;
   refreshSession: () => Promise<UserOut | null>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -119,6 +127,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return me;
   }, []);
 
+  /**
+   * Changing the password ends the session.
+   *
+   * The backend revokes every refresh token for the user
+   * (`app/services/auth.py:105`) but the current access token stays valid until
+   * it expires. Leaving the client authenticated would look like a successful
+   * sign-in that silently dies ~120 minutes later, so we clear local state and
+   * make the user authenticate again with the new password.
+   */
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await changePasswordApi({
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    clearSessionStorage();
+    clearAll();
+    setUser(null);
+    setStatus("unauthenticated");
+  }, []);
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
@@ -138,8 +166,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, user, login, register, linkMember, refreshSession, logout }),
-    [status, user, login, register, linkMember, refreshSession, logout]
+    () => ({
+      status,
+      user,
+      mustChangePassword: user?.must_change_password ?? false,
+      login,
+      register,
+      linkMember,
+      refreshSession,
+      changePassword,
+      logout,
+    }),
+    [status, user, login, register, linkMember, refreshSession, changePassword, logout]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

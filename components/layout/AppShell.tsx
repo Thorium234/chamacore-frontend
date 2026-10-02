@@ -1,19 +1,28 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 import { NavLinkList } from "@/components/layout/AppNav";
 import { ChamaSwitcher } from "@/components/layout/ChamaSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationBell } from "@/features/notifications/NotificationBell";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Spinner } from "@/components/ui/States";
 import { useSession } from "@/features/auth/session";
+import { ChangePasswordForm } from "@/features/auth/ChangePasswordForm";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
 import { invalidate } from "@/lib/query/cache";
+
+/**
+ * Routes that are global to the account rather than scoped to an active Chama.
+ * Without this, a platform admin who belongs to no Chama would be stuck on the
+ * onboarding screen and could never reach the admin console.
+ */
+const GLOBAL_ROUTES = ["/platform"];
 
 function MenuIcon() {
   return (
@@ -104,9 +113,11 @@ function Onboarding() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { status, user, logout, refreshSession } = useSession();
+  const { status, user, logout, refreshSession, mustChangePassword } = useSession();
   const { activeChamaId, activeChama, chamaError, clearActiveChama } = useChama();
   const router = useRouter();
+  const pathname = usePathname();
+  const isGlobalRoute = GLOBAL_ROUTES.some((route) => pathname.startsWith(route));
   const [navOpen, setNavOpen] = useState(false);
   const [refreshingSession, setRefreshingSession] = useState(false);
 
@@ -138,6 +149,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   async function handleLogout() {
     await logout();
     router.replace("/login");
+  }
+
+  /**
+   * Hard gate on `must_change_password`.
+   *
+   * No backend dependency enforces the flag (`app/api/deps.py:68` only checks
+   * token validity), so this is the only place the rule is enforced. It renders
+   * before the app chrome so nothing behind it can call a money endpoint.
+   */
+  if (mustChangePassword) {
+    return (
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-12">
+        <Card
+          title="Choose a new password"
+          description="You need to set a new password before you can use ChamaCore."
+        >
+          <ChangePasswordForm forced />
+        </Card>
+        <div className="mt-4 text-center">
+          <Button variant="secondary" size="sm" onClick={handleLogout}>
+            Sign out
+          </Button>
+        </div>
+      </main>
+    );
   }
 
   async function handleRefreshSession() {
@@ -181,6 +217,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {user?.email}
             </span>
             <ThemeToggle />
+            <NotificationBell />
             <Button variant="secondary" size="sm" onClick={handleLogout}>
               Sign out
             </Button>
@@ -200,7 +237,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </aside>
         <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-          {!activeChamaId ? (
+          {isGlobalRoute ? (
+            children
+          ) : !activeChamaId ? (
             <Onboarding />
           ) : chamaError ? (
             <div className="mx-auto mt-8 max-w-xl">

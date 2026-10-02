@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Alert } from "@/components/ui/Alert";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { useSession } from "@/features/auth/session";
@@ -14,6 +15,7 @@ import { createPaymentIntent, initiatePaymentIntent, listPaymentConnections } fr
 import { listMemberships } from "@/lib/api/memberships";
 import { getErrorMessage, toApiError } from "@/lib/api/errors";
 import { formatMoney } from "@/lib/format";
+import { isLikelyKenyanPhone, normalizePhone, formatPhone } from "@/lib/phone";
 import type { MembershipOut } from "@/types/api";
 
 export function PaymentForm() {
@@ -39,14 +41,16 @@ export function PaymentForm() {
 
   const [membershipId, setMembershipId] = useState("");
   const [amount, setAmount] = useState("");
+  const [payerPhone, setPayerPhone] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [pushedAmount, setPushedAmount] = useState<string | null>(null);
+  const [pushedPhone, setPushedPhone] = useState<string | null>(null);
 
   // One idempotency key per logical submit action — kept stable across retries.
   const idempotencyKeyRef = useRef<string | null>(null);
 
   const { mutate, isPending, error, reset } = useMutation(
-    async (membershipIdArg: string) => {
+    async (input: { membershipId: string; phoneNumber: string | null }) => {
       if (!chamaId) throw new Error("No active Chama");
       if (!activeConnection) throw new Error("No active payment connection is configured yet.");
       let key = idempotencyKeyRef.current;
@@ -55,11 +59,14 @@ export function PaymentForm() {
         idempotencyKeyRef.current = key;
       }
       const intent = await createPaymentIntent(chamaId, {
-        membership_id: membershipIdArg,
+        membership_id: input.membershipId,
         amount,
         currency: "KES",
         purpose: "CONTRIBUTION",
         idempotency_key: key,
+        // Omitted charges the member's registered number; the backend falls back
+        // to it when this is null (`app/services/payment_intent.py`).
+        phone_number: input.phoneNumber,
       });
       return initiatePaymentIntent(chamaId, intent.id, {
         connection_id: activeConnection.id,
@@ -73,6 +80,7 @@ export function PaymentForm() {
       onSuccess: () => {
         idempotencyKeyRef.current = null;
         setPushedAmount(amount);
+        setPushedPhone(payerPhone.trim() ? normalizePhone(payerPhone) : null);
       },
     }
   );
@@ -96,12 +104,23 @@ export function PaymentForm() {
       setFormError("Enter a valid amount in KES, e.g. 1500 or 1500.00.");
       return;
     }
+    // An alternate payer is optional, but a malformed one is rejected by the
+    // API with a PHONE_FORMAT failure code, so catch it before the push.
+    const trimmedPhone = payerPhone.trim();
+    if (trimmedPhone && !isLikelyKenyanPhone(trimmedPhone)) {
+      setFormError("Enter a valid Kenyan phone number, or leave it empty to use your own.");
+      return;
+    }
     setFormError(null);
 
-    const result = await mutate(resolvedMembershipId);
+    const result = await mutate({
+      membershipId: resolvedMembershipId,
+      phoneNumber: trimmedPhone ? trimmedPhone : null,
+    });
     if (result) {
       reset();
       setAmount("");
+      setPayerPhone("");
     } else if (chamaId) {
       // The failure may be a network loss after the provider accepted the push.
       // Reload intent state so the user sees what actually happened before
@@ -158,8 +177,11 @@ export function PaymentForm() {
             <Alert tone="success" title="Payment request sent">
               <p>
                 We pushed an M-Pesa request for{" "}
-                <strong>{formatMoney(pushedAmount)}</strong> to your registered
-                phone number.
+                <strong>{formatMoney(pushedAmount)}</strong> to{" "}
+                <strong>
+                  {pushedPhone ? formatPhone(pushedPhone) : "your registered phone number"}
+                </strong>
+                .
               </p>
               <p className="mt-1">
                 Your contribution and shares update only after M-Pesa confirms
@@ -208,10 +230,18 @@ export function PaymentForm() {
             <Input label="Purpose" value="CONTRIBUTION" disabled hint="Contribution to this Chama." />
           </div>
 
+          <PhoneInput
+            label="Pay from a different number (optional)"
+            value={payerPhone}
+            onChange={setPayerPhone}
+            hint="Leave empty to charge the number on your member record. This does not change whose contribution is credited — that stays your membership."
+          />
+
           <p className="text-xs text-zinc-500">
             Paying via <strong>{activeConnection.provider_code}</strong> to{" "}
             <strong>{activeConnection.masked_account_identifier}</strong>. An M-Pesa STK push
-            will be sent to your registered phone number.
+            will be sent to{" "}
+            {payerPhone.trim() ? "the number you entered" : "your registered phone number"}.
           </p>
 
           <Button type="submit" loading={isPending} disabled={!canSubmit}>

@@ -1,4 +1,4 @@
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   ensureEntry,
@@ -15,13 +15,28 @@ export interface UseQueryResult<T> {
   refetch: () => void;
 }
 
+export interface UseQueryOptions {
+  /**
+   * Poll the key on an interval, in milliseconds. Only for ambient data the
+   * backend has no push channel for — the notification unread count. Money views
+   * stay on `invalidate()` after mutations rather than polling.
+   */
+  refetchInterval?: number;
+}
+
 /**
  * Declarative query bound to a cache key. The key is the source of truth
  * (e.g. `${chamaId}:memberships`); a key change subscribes to a new entry and
  * `invalidate(prefix)` triggers refetch. The fetcher is captured per render so
  * it always targets the same key (key + fetcher change together).
  */
-export function useQuery<T>(key: string | null, fetcher: () => Promise<T>): UseQueryResult<T> {
+export function useQuery<T>(
+  key: string | null,
+  fetcher: () => Promise<T>,
+  options: UseQueryOptions = {}
+): UseQueryResult<T> {
+  const { refetchInterval } = options;
+
   const subscribeForKey = useCallback(
     (onStoreChange: () => void) => {
       if (!key) return () => {};
@@ -41,6 +56,12 @@ export function useQuery<T>(key: string | null, fetcher: () => Promise<T>): UseQ
   const refetch = useCallback(() => {
     if (key) invalidate(key);
   }, [key]);
+
+  useEffect(() => {
+    if (!key || !refetchInterval) return;
+    const timer = setInterval(() => invalidate(key), refetchInterval);
+    return () => clearInterval(timer);
+  }, [key, refetchInterval]);
 
   return {
     data: state?.status === "success" ? (state.data as T) : undefined,

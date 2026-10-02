@@ -25,6 +25,7 @@ export function RecordContributionForm() {
   const [membershipId, setMembershipId] = useState("");
   const [amount, setAmount] = useState("");
   const [period, setPeriod] = useState(currentPeriod());
+  const [paymentDate, setPaymentDate] = useState("");
   const [note, setNote] = useState("");
 
   const { mutate, isPending, error, reset } = useMutation(
@@ -34,6 +35,8 @@ export function RecordContributionForm() {
         membership_id: membershipId,
         amount,
         period,
+        // Omitted lets the backend default to the recording date.
+        payment_date: paymentDate || null,
         note: note.trim() || null,
       });
     },
@@ -50,6 +53,7 @@ export function RecordContributionForm() {
       reset();
       setAmount("");
       setNote("");
+      setPaymentDate("");
     }
   }
 
@@ -99,6 +103,14 @@ export function RecordContributionForm() {
           value={period}
           onChange={(event) => setPeriod(event.target.value)}
           hint="Contribution period (YYYY-MM)."
+        />
+        <Input
+          label="Payment date (optional)"
+          type="date"
+          value={paymentDate}
+          max={new Date().toISOString().slice(0, 10)}
+          onChange={(event) => setPaymentDate(event.target.value)}
+          hint="For cash or bank entries. Leave empty to use today's date."
         />
       </div>
       <Textarea

@@ -14,11 +14,23 @@ export interface TokenOut {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+  /**
+   * Server flag telling us the user must set a new password before continuing.
+   * No backend dependency enforces it (`app/api/deps.py:68`), so the frontend
+   * gates the app shell on it.
+   */
+  must_change_password: boolean;
 }
 
 export interface RegisterPayload {
   email: string;
   password: string;
+}
+
+export interface ChangePasswordPayload {
+  current_password: string;
+  /** 8–128 characters (`app/schemas/user.py:24`). */
+  new_password: string;
 }
 
 export interface MemberLinkPayload {
@@ -31,12 +43,22 @@ export interface UserOut {
   email: string;
   is_active: boolean;
   member_id: string | null;
+  must_change_password: boolean;
   created_at: string;
 }
 
 // ---- Members / Chamas ----
 
-export type ChamaStatus = "ACTIVE" | "INACTIVE";
+/**
+ * `app/models/enums.py:6`. `INACTIVE` is legacy and is canonicalized to
+ * `SUSPENDED` server-side, but it can still appear on older records.
+ */
+export type ChamaStatus =
+  | "PENDING"
+  | "ACTIVE"
+  | "SUSPENDED"
+  | "DISSOLVED"
+  | "INACTIVE";
 
 export interface ChamaOut {
   id: string;
@@ -72,7 +94,17 @@ export interface ChamaUpdatePayload {
 
 // ---- Memberships ----
 
+/**
+ * Chama membership roles only (`app/models/enums.py:69`). `PLATFORM_ADMIN` is a
+ * global role held in `user_platform_roles` and is never a membership role — the
+ * backend filters it out of membership role lists (`app/services/role.py:28`).
+ * Use `PlatformRoleName` for that one instead of widening this union.
+ */
 export type RoleName = "CHAIRPERSON" | "TREASURER" | "SECRETARY" | "MEMBER";
+
+/** Global platform role, held in `user_platform_roles`. */
+export type PlatformRoleName = "PLATFORM_ADMIN";
+
 export type MembershipStatus = "ACTIVE" | "INACTIVE";
 
 export interface MemberPublic {
@@ -147,6 +179,8 @@ export interface ContributionOut {
   period: string;
   status: ContributionStatus;
   recorded_by_user_id: string;
+  /** Optional back-dating for manual entries (`app/schemas/membership.py:88`). */
+  payment_date: string | null;
   note: string | null;
   confirmed_at: string | null;
   created_at: string;
@@ -157,6 +191,8 @@ export interface ContributionCreatePayload {
   membership_id: string;
   amount: string;
   period: string;
+  /** ISO `YYYY-MM-DD`. Optional; the backend defaults to the recording date. */
+  payment_date?: string | null;
   note?: string | null;
 }
 
@@ -307,6 +343,11 @@ export interface PaymentIntentOut {
   chama_id: string;
   membership_id: string;
   contribution_id: string | null;
+  /**
+   * Alternate payer MSISDN supplied at creation, normalized to `254…`.
+   * Null means the provider used the member's registered phone number.
+   */
+  requested_phone: string | null;
   amount: string;
   currency: string;
   purpose: string;
@@ -326,6 +367,11 @@ export interface PaymentIntentCreatePayload {
   purpose: string;
   idempotency_key: string;
   contribution_id?: string | null;
+  /**
+   * Optional alternate payer phone (`app/schemas/payment.py:65`). Omit to charge
+   * the member's registered number.
+   */
+  phone_number?: string | null;
 }
 
 export interface PaymentIntentInitiatePayload {
@@ -484,3 +530,121 @@ export interface AuditEventOut {
   user_agent: string | null;
   created_at: string;
 }
+
+// ---- Notifications ----
+
+/** Only `IN_APP` exists today (`app/models/enums.py` NotificationChannel). */
+export type NotificationChannel = "IN_APP";
+
+/**
+ * `app/schemas/notification.py:11`.
+ *
+ * There is deliberately no badge/severity/link field: navigation hints are
+ * `action` (free string), `resource_type` + `resource_id`, and the free-form
+ * `payload`. Do not invent a badge field — the backend does not send one.
+ */
+export interface NotificationOut {
+  id: string;
+  /** Free-form verb such as `contribution_confirmed`. Not an enum. */
+  action: string;
+  title: string;
+  body: string | null;
+  channel: NotificationChannel;
+  chama_id: string | null;
+  resource_type: string | null;
+  resource_id: string | null;
+  actor_user_id: string | null;
+  payload: Record<string, unknown> | null;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface UnreadCountOut {
+  unread_count: number;
+}
+
+export interface MarkAllReadOut {
+  /** Rows actually flipped to read, not the total matching the filter. */
+  updated: number;
+}
+
+export interface NotificationListParams {
+  unread_only?: boolean;
+  chama_id?: string | null;
+  /** 1–500 server-side. Omit to receive everything. */
+  limit?: number;
+  offset?: number;
+}
+
+// ---- Platform admin ----
+
+/** `app/schemas/platform.py:29`. */
+export interface PlatformChamaStatusUpdate {
+  status: ChamaStatus;
+  /** Optional, ≤500 chars. Recorded with the transition. */
+  reason?: string | null;
+}
+
+export interface PlatformChamaOut {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ChamaStatus;
+  registration_fee_amount: string;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+  active_member_count: number;
+  membership_count: number;
+}
+
+export interface PlatformUserOut {
+  id: string;
+  email: string;
+  is_active: boolean;
+  must_change_password: boolean;
+  member_id: string | null;
+  /** Always `[]` for non-admins; may contain `PLATFORM_ADMIN`. */
+  platform_roles: PlatformRoleName[];
+  created_at: string;
+}
+
+export interface PlatformStatsOut {
+  total_chamas: number;
+  active_chamas: number;
+  pending_chamas: number;
+  suspended_chamas: number;
+  dissolved_chamas: number;
+  total_users: number;
+  total_members: number;
+  platform_admins: number;
+}
+
+export interface PlatformChamaListParams {
+  status?: ChamaStatus | null;
+  /** ≤255 chars. */
+  search?: string | null;
+  /** 1–500 server-side. */
+  limit?: number;
+  offset?: number;
+}
+
+export interface PlatformUserListParams {
+  search?: string | null;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Legal Chama status transitions (`app/services/platform.py:26`). `DISSOLVED`
+ * is terminal and `INACTIVE` is canonicalized to `SUSPENDED` server-side, so
+ * neither is offered as a target here.
+ */
+export const PLATFORM_STATUS_TRANSITIONS: Record<ChamaStatus, ChamaStatus[]> = {
+  PENDING: ["ACTIVE", "SUSPENDED", "DISSOLVED"],
+  ACTIVE: ["SUSPENDED", "DISSOLVED"],
+  SUSPENDED: ["ACTIVE", "DISSOLVED"],
+  DISSOLVED: [],
+  INACTIVE: ["ACTIVE", "SUSPENDED", "DISSOLVED"],
+};

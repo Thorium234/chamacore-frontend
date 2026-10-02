@@ -12,6 +12,7 @@ import { refetchEntry } from "@/lib/query/cache";
 import { listPaymentIntents } from "@/lib/api/payments";
 import { listMemberships } from "@/lib/api/memberships";
 import { formatDateTime, formatMoney, shortId } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { IntentAttemptsModal } from "@/features/payments/IntentAttemptsModal";
 import type { MembershipOut, PaymentIntentOut } from "@/types/api";
 
@@ -96,6 +97,14 @@ export function IntentsList() {
             <Td>{formatMoney(intent.amount)}</Td>
             <Td>
               <span className="text-xs uppercase tracking-wide text-zinc-500">{intent.purpose}</span>
+              {intent.requested_phone ? (
+                <span
+                  className="mt-0.5 block text-xs text-zinc-400"
+                  title="An alternate payer number was supplied for this request. The contribution is still credited to this membership."
+                >
+                  payer {formatPhone(intent.requested_phone)}
+                </span>
+              ) : null}
             </Td>
             <Td>
               <StatusBadge status={intent.status} />
