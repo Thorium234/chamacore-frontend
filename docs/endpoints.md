@@ -1,7 +1,7 @@
 1. Auth
 Method,Path,Body / notes,Auth
-POST,/api/v1/auth/register,"JSON { ""email"", ""password"" } → 201",No
-POST,/api/v1/auth/token,"Form username=email, password → TokenOut",No
+POST,/api/v1/auth/register,"JSON { email, password, member: { first_name, last_name, phone_number, government_id } } → 201",No
+POST,/api/v1/auth/token,"Form username=email|phone|government ID, password → TokenOut",No
 POST,/api/v1/auth/refresh,"JSON { ""refresh_token"" } → TokenOut",No
 POST,/api/v1/auth/logout,"JSON { ""refresh_token"" } → 204",No
 GET,/api/v1/auth/me,→ current user,Yes

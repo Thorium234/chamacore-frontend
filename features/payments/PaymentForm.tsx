@@ -57,6 +57,8 @@ export function PaymentForm() {
   const [attemptStatus, setAttemptStatus] = useState<PaymentAttemptOut["status"] | null>(null);
   const [failedAttempt, setFailedAttempt] = useState<PaymentAttemptOut | null>(null);
   const [pendingIntentId, setPendingIntentId] = useState<string | null>(null);
+  const [ignoredIntentIds, setIgnoredIntentIds] = useState<string[]>([]);
+  const [confirmStopIntentId, setConfirmStopIntentId] = useState<string | null>(null);
 
   // One idempotency key per logical submit action — kept stable across retries.
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -117,6 +119,8 @@ export function PaymentForm() {
   useEffect(() => {
     idempotencyKeyRef.current = null;
     setPendingIntentId(null);
+    setIgnoredIntentIds([]);
+    setConfirmStopIntentId(null);
     setFailedAttempt(null);
     setPushedAmount(null);
   }, [chamaId]);
@@ -189,18 +193,36 @@ export function PaymentForm() {
   // Double-submit protection plus real validity: never let a request be created
   // with a blank membership or a non-numeric amount.
   const amountIsValid = /^\d+(\.\d{1,2})?$/.test(amount) && Number(amount) > 0;
-  const hasOtherInFlightIntent = (intents.data ?? []).some(
+  const serverInFlightIntent = (intents.data ?? []).find(
     (intent) =>
       intent.membership_id === effectiveMembershipId &&
       intent.status === "PROCESSING" &&
-      intent.id !== pendingIntentId
+      !ignoredIntentIds.includes(intent.id)
   );
+  const blockingIntentId =
+    (pendingIntentId && !ignoredIntentIds.includes(pendingIntentId)
+      ? pendingIntentId
+      : null) ?? serverInFlightIntent?.id ?? null;
   const canSubmit =
     Boolean(effectiveMembershipId) &&
     amountIsValid &&
     !isPending &&
-    !pendingIntentId &&
-    !hasOtherInFlightIntent;
+    !blockingIntentId;
+
+  function stopWaitingForIntent(intentId: string) {
+    setIgnoredIntentIds((current) =>
+      current.includes(intentId) ? current : [...current, intentId]
+    );
+    setPendingIntentId((current) => (current === intentId ? null : current));
+    setConfirmStopIntentId(null);
+    setPushedAmount(null);
+    setPushedPhone(null);
+    setAttemptStatus(null);
+    setFailedAttempt(null);
+    setFormError(null);
+    idempotencyKeyRef.current = null;
+    reset();
+  }
 
   return (
     <>
@@ -327,18 +349,65 @@ export function PaymentForm() {
           <Button type="submit" loading={isPending} disabled={!canSubmit}>
             Pay {amount ? formatMoney(amount) : "your contribution"}
           </Button>
-          {pendingIntentId || hasOtherInFlightIntent ? (
+          {blockingIntentId ? (
             <Alert tone="info" title="Payment still processing">
-              Wait for the current request to finish before starting another payment for this membership.
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="mt-2"
-                onClick={intents.refetch}
-              >
-                Refresh payment status
-              </Button>
+              <p>
+                This payment is still being reconciled. You can keep waiting for its status, or stop
+                waiting on this page to make another payment request.
+              </p>
+              {confirmStopIntentId === blockingIntentId ? (
+                <div className="mt-3 space-y-2">
+                  <p>
+                    This does not cancel the M-Pesa prompt. The earlier payment may still complete,
+                    which could result in two payments. Cancel or let that prompt expire on your phone
+                    before proceeding.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="danger"
+                      onClick={() => stopWaitingForIntent(blockingIntentId)}
+                    >
+                      I understand — allow another payment
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setConfirmStopIntentId(null)}
+                    >
+                      Keep waiting
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={intents.refetch}
+                  >
+                    Refresh payment status
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setConfirmStopIntentId(blockingIntentId)}
+                  >
+                    Stop waiting and start another
+                  </Button>
+                </div>
+              )}
+            </Alert>
+          ) : null}
+          {ignoredIntentIds.length > 0 ? (
+            <Alert tone="info" title="Earlier payment still being reconciled">
+              Stopping the wait here did not cancel the M-Pesa request. It may still complete. This
+              page continues checking its status; review Payment intents before making further
+              payments.
             </Alert>
           ) : null}
           {!amountIsValid && amount.length > 0 ? (

@@ -36,8 +36,8 @@ Build a **consumer UI** for the existing ChamaCore FastAPI backend.
    Do not sum contributions in the browser and call that “Cash balance”.
 
 3. **Auth**  
-   - Register: `POST /api/v1/auth/register` JSON `{ email, password }`  
-   - Login: `POST /api/v1/auth/token` **form-urlencoded** `username` (email) + `password`  
+   - Register: `POST /api/v1/auth/register` JSON `{ email, password, member: { first_name, last_name, phone_number, government_id } }`
+   - Login: `POST /api/v1/auth/token` **form-urlencoded** `username` (email, phone, or government ID) + `password`
    - Refresh: `POST /api/v1/auth/refresh` JSON `{ refresh_token }`  
    - Logout: `POST /api/v1/auth/logout` JSON `{ refresh_token }` → 204  
    - Me: `GET /api/v1/auth/me` with `Authorization: Bearer <access_token>`  

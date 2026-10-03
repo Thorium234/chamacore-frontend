@@ -16,8 +16,8 @@ export interface TokenOut {
   expires_in: number;
   /**
    * Server flag telling us the user must set a new password before continuing.
-   * No backend dependency enforces it (`app/api/deps.py:68`), so the frontend
-   * gates the app shell on it.
+   * The backend enforces it on authenticated routes, and the frontend gates
+   * the app shell on it as well.
    */
   must_change_password: boolean;
 }
@@ -25,6 +25,12 @@ export interface TokenOut {
 export interface RegisterPayload {
   email: string;
   password: string;
+  member: {
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    government_id: string;
+  };
 }
 
 export interface ChangePasswordPayload {
