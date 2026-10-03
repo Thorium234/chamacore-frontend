@@ -86,7 +86,7 @@ export function IntentAttemptsModal({
                     <Alert tone="error" className="p-2 text-xs">
                       {attempt.failure_code ? <p>{attempt.failure_code}</p> : null}
                       {attempt.failure_code === "PHONE_FORMAT" ? (
-                        <p>Use a Safaricom number in the format 07XXXXXXXX or 2547XXXXXXXX.</p>
+                        <p>Use a Safaricom number in the 07XXXXXXXX or 011XXXXXXX format (or its 254 international form).</p>
                       ) : null}
                       {attempt.failure_message_safe ? (
                         <p>{attempt.failure_message_safe}</p>

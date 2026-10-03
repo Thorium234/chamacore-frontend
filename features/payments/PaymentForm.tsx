@@ -493,7 +493,7 @@ export function PaymentForm() {
 function paymentErrorMessage(error: unknown): string {
   const apiError = toApiError(error);
   if (apiError.code === "PHONE_FORMAT") {
-    return "Use a Safaricom number in the format 07XXXXXXXX or 2547XXXXXXXX.";
+    return "Use a Safaricom number in the 07XXXXXXXX or 011XXXXXXX format (or its 254 international form).";
   }
   if (apiError.code?.startsWith("DARAJA_")) {
     return darajaFailureMessage(apiError.code, apiError.message);
@@ -503,7 +503,7 @@ function paymentErrorMessage(error: unknown): string {
 
 function attemptFailureMessage(attempt: PaymentAttemptOut): string {
   if (attempt.failure_code === "PHONE_FORMAT") {
-    return "Use a Safaricom number in the format 07XXXXXXXX or 2547XXXXXXXX, then start a new payment request.";
+    return "Use a Safaricom number in the 07XXXXXXXX or 011XXXXXXX format (or its 254 international form), then start a new payment request.";
   }
   if (attempt.failure_code?.startsWith("DARAJA_")) {
     return darajaFailureMessage(attempt.failure_code, attempt.failure_message_safe ?? "");
@@ -517,5 +517,5 @@ function darajaFailureMessage(code: string, message: string): string {
   const explanation = message && message !== "Daraja did not accept the STK Push request"
     ? ` Provider response: ${message}`
     : "";
-  return `${code}: Daraja rejected the STK Push request.${explanation} Check that the payer number is a Safaricom mobile number entered as 07XXXXXXXX or 2547XXXXXXXX. If it is valid, ask the Chama administrator to check the Daraja connection settings.`;
+  return `${code}: Daraja rejected the STK Push request.${explanation} Check that the payer number is a Safaricom mobile number in the 07XXXXXXXX or 011XXXXXXX range (or its 254 international form). If it is valid, ask the Chama administrator to check the Daraja connection settings.`;
 }
