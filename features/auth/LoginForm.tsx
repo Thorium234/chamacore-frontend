@@ -46,13 +46,13 @@ export function LoginForm() {
     >
       <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Sign in</h1>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        Use the email, phone number or national ID on your member record, with your password.
+        Use your email, phone number, or national ID and your password.
       </p>
 
       {justRegistered ? (
         <Alert tone="success" className="mt-4" title="Account created">
-          You can now sign in with your new account, then create a Chama or link the member record
-          leadership added for you.
+          Sign in with your email, phone number, or national ID. If leadership created your account,
+          use your government ID as the temporary password; you will be asked to change it.
         </Alert>
       ) : null}
 
@@ -78,7 +78,7 @@ export function LoginForm() {
           value={identifier}
           onChange={(event) => setIdentifier(event.target.value)}
           placeholder="you@example.com or 0712 345 678"
-          hint="Phone and national ID sign-in only work once leadership has linked your member record."
+          hint="For accounts created by leadership, phone and ID sign-in are ready immediately."
         />
         <Input
           label="Password"

@@ -82,6 +82,11 @@ export interface MemberDetails {
   last_name: string;
   phone_number: string;
   government_id: string;
+  email?: string | null;
+}
+
+export interface NewMemberAccountDetails extends MemberDetails {
+  email: string;
 }
 
 export interface ChamaCreatePayload {
@@ -157,7 +162,7 @@ export interface MembershipOut {
 }
 
 export interface MembershipCreatePayload {
-  member: MemberDetails;
+  member: NewMemberAccountDetails;
 }
 
 export interface MembershipStatusUpdatePayload {

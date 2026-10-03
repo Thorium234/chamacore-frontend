@@ -35,7 +35,7 @@ PATCH,/api/v1/chamas/{chama_id},Chairperson only
 }
 5.Memberships
 Method,Path,Notes
-POST,/api/v1/chamas/{chama_id}/memberships,Chair / Treasurer / Secretary
+POST,/api/v1/chamas/{chama_id}/memberships,"Chair / Treasurer / Secretary; new member body includes email and provisions login (phone/email/ID; ID temporary password; forced change)"
 GET,/api/v1/chamas/{chama_id}/memberships,List
 PATCH,/api/v1/chamas/{chama_id}/memberships/{membership_id}/status,Chair; ACTIVE | INACTIVE
 6. Roles

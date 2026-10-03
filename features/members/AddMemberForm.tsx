@@ -16,6 +16,7 @@ export function AddMemberForm() {
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [governmentId, setGovernmentId] = useState("");
+  const [email, setEmail] = useState("");
 
   const { mutate, isPending, error, reset } = useMutation(
     async () => {
@@ -26,6 +27,7 @@ export function AddMemberForm() {
           last_name: lastName.trim(),
           phone_number: phoneNumber.trim(),
           government_id: governmentId.trim(),
+          email: email.trim(),
         },
       });
     },
@@ -42,6 +44,7 @@ export function AddMemberForm() {
       setLastName("");
       setPhoneNumber("");
       setGovernmentId("");
+      setEmail("");
     }
   }
 
@@ -72,6 +75,19 @@ export function AddMemberForm() {
         value={governmentId}
         onChange={(event) => setGovernmentId(event.target.value)}
       />
+      <Input
+        label="Email address"
+        type="email"
+        autoComplete="email"
+        required
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        placeholder="member@example.com"
+      />
+      <Alert tone="info" title="Member login will be created">
+        They can sign in with this email, their phone number, or government ID. Their government ID
+        will be the temporary password, and they will be required to change it at first sign-in.
+      </Alert>
 
       <Button type="submit" loading={isPending}>
         Add member
