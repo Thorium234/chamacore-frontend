@@ -427,7 +427,7 @@ function paymentErrorMessage(error: unknown): string {
     return "Use a Safaricom number in the format 07XXXXXXXX or 2547XXXXXXXX.";
   }
   if (apiError.code?.startsWith("DARAJA_")) {
-    return `${apiError.code}: ${apiError.message}`;
+    return darajaFailureMessage(apiError.code, apiError.message);
   }
   return getErrorMessage(apiError);
 }
@@ -436,7 +436,17 @@ function attemptFailureMessage(attempt: PaymentAttemptOut): string {
   if (attempt.failure_code === "PHONE_FORMAT") {
     return "Use a Safaricom number in the format 07XXXXXXXX or 2547XXXXXXXX, then start a new payment request.";
   }
+  if (attempt.failure_code?.startsWith("DARAJA_")) {
+    return darajaFailureMessage(attempt.failure_code, attempt.failure_message_safe ?? "");
+  }
   return [attempt.failure_code, attempt.failure_message_safe]
     .filter(Boolean)
     .join(": ") || "The provider could not complete this payment. Review the attempt details before trying again.";
+}
+
+function darajaFailureMessage(code: string, message: string): string {
+  const explanation = message && message !== "Daraja did not accept the STK Push request"
+    ? ` Provider response: ${message}`
+    : "";
+  return `${code}: Daraja rejected the STK Push request.${explanation} Check that the payer number is a Safaricom mobile number entered as 07XXXXXXXX or 2547XXXXXXXX. If it is valid, ask the Chama administrator to check the Daraja connection settings.`;
 }
