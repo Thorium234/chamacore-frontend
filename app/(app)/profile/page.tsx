@@ -11,10 +11,12 @@ import { Spinner } from "@/components/ui/States";
 import { MemberLinkForm } from "@/features/auth/MemberLinkForm";
 import { ChangePasswordForm } from "@/features/auth/ChangePasswordForm";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
+import { usePlatformAdmin } from "@/features/platform/usePlatformAdmin";
 import { formatDate } from "@/lib/format";
 
 export default function ProfilePage() {
   const { user } = useSession();
+  const { isAdmin, isChecking } = usePlatformAdmin();
   const {
     myChamas,
     isLoadingMyChamas,
@@ -105,9 +107,11 @@ export default function ProfilePage() {
         <ChangePasswordForm />
       </Card>
 
-      <Card title="Create a new Chama" className="mt-6">
-        <CreateChamaForm />
-      </Card>
+      {!user.member_id && !isAdmin && !isChecking ? (
+        <Card title="Create a Chama" className="mt-6">
+          <CreateChamaForm />
+        </Card>
+      ) : null}
     </div>
   );
 }

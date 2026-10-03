@@ -69,6 +69,7 @@ Build a **consumer UI** for the existing ChamaCore FastAPI backend.
 
 10. **Chama context**  
     Keep an explicit active `chama_id`. On switch, invalidate Chama-scoped cache/queries.
+    Group financial records and the Chama ledger are executive-only; regular members see their own records and statements.
 
 11. **Errors**  
     Prefer `{ detail: { code, message } }` or string `detail`.  

@@ -19,7 +19,9 @@ export default function ContributionsPage() {
     <div>
       <PageHeader
         title="Contributions"
-        description="Contribution records per period. Confirmed contributions update the ledger and member shares."
+        description={capabilities.isLeadership
+          ? "Contribution records for this Chama. Confirmed contributions update the ledger and member shares."
+          : "Your contribution history and settlement status."}
       />
 
       {capabilities.canRecordContributions ? (
@@ -28,7 +30,7 @@ export default function ContributionsPage() {
         </Card>
       ) : (
         <Alert tone="info" className="mb-6">
-          Only the chairperson or treasurer can record contributions. Your view is read-only.
+          You can review your own contribution history. Recording and reviewing group contributions is restricted to Chama executives.
         </Alert>
       )}
 

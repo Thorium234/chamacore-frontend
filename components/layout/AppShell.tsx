@@ -15,6 +15,7 @@ import { useSession } from "@/features/auth/session";
 import { ChangePasswordForm } from "@/features/auth/ChangePasswordForm";
 import { useChama } from "@/features/chamas/ChamaContext";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
+import { usePlatformAdmin } from "@/features/platform/usePlatformAdmin";
 import { invalidate } from "@/lib/query/cache";
 
 /**
@@ -22,7 +23,7 @@ import { invalidate } from "@/lib/query/cache";
  * Without this, a platform admin who belongs to no Chama would be stuck on the
  * onboarding screen and could never reach the admin console.
  */
-const GLOBAL_ROUTES = ["/platform"];
+const GLOBAL_ROUTES = ["/platform", "/dashboard", "/profile"];
 
 function MenuIcon() {
   return (
@@ -58,7 +59,13 @@ function CloseIcon() {
   );
 }
 
-function Onboarding() {
+function Onboarding({
+  canCreateChama,
+  isPlatformAdmin,
+}: {
+  canCreateChama: boolean;
+  isPlatformAdmin: boolean;
+}) {
   const {
     myChamas,
     isLoadingMyChamas,
@@ -71,7 +78,11 @@ function Onboarding() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Welcome to ChamaCore</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Create a Chama to start tracking contributions, shares, and your ledger.
+          {canCreateChama
+            ? "Create a Chama to start tracking contributions, shares, and your ledger."
+            : isPlatformAdmin
+              ? "Use the dashboard for a platform overview or open Administration to manage Chamas."
+              : "Your account is already linked to a member record. Ask a Chama chairperson to add your membership."}
         </p>
       </div>
 
@@ -105,9 +116,11 @@ function Onboarding() {
         </Card>
       ) : null}
 
-      <Card title="Create a new Chama">
-        <CreateChamaForm />
-      </Card>
+      {canCreateChama ? (
+        <Card title="Create a Chama">
+          <CreateChamaForm />
+        </Card>
+      ) : null}
     </div>
   );
 }
@@ -115,6 +128,7 @@ function Onboarding() {
 export function AppShell({ children }: { children: ReactNode }) {
   const { status, user, logout, refreshSession, mustChangePassword } = useSession();
   const { activeChamaId, activeChama, chamaError, clearActiveChama } = useChama();
+  const { isAdmin, isChecking: isCheckingPlatformAdmin } = usePlatformAdmin();
   const router = useRouter();
   const pathname = usePathname();
   const isGlobalRoute = GLOBAL_ROUTES.some((route) => pathname.startsWith(route));
@@ -253,7 +267,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           {isGlobalRoute ? (
             children
           ) : !activeChamaId ? (
-            <Onboarding />
+            <Onboarding
+              canCreateChama={!isCheckingPlatformAdmin && !isAdmin && !user?.member_id}
+              isPlatformAdmin={isAdmin}
+            />
           ) : chamaError ? (
             <div className="mx-auto mt-8 max-w-xl">
               <Alert

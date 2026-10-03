@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { AddMemberForm } from "@/features/members/AddMemberForm";
 import { MembersList } from "@/features/members/MembersList";
+import { RequireLeadership } from "@/features/roles/RequireLeadership";
 
 export default function MembersPage() {
   const { activeChamaId } = useChama();
@@ -14,26 +15,28 @@ export default function MembersPage() {
   const { canAddMembers } = capabilities;
 
   return (
-    <div>
-      <PageHeader
-        title="Members"
-        description="Memberships, roles, and registration fees for this Chama."
-      />
+    <RequireLeadership>
+      <div>
+        <PageHeader
+          title="Members"
+          description="Memberships, roles, and registration fees for this Chama."
+        />
 
-      {canAddMembers ? (
-        <Card title="Add a member" className="mb-6">
-          <AddMemberForm />
+        {canAddMembers ? (
+          <Card title="Add a member" className="mb-6">
+            <AddMemberForm />
+          </Card>
+        ) : (
+          <Alert tone="info" className="mb-6">
+            Only chairpersons, treasurers, and secretaries can add members. Your
+            role here is read-only.
+          </Alert>
+        )}
+
+        <Card title="Member list">
+          <MembersList />
         </Card>
-      ) : (
-        <Alert tone="info" className="mb-6">
-          Only chairpersons, treasurers, and secretaries can add members. Your
-          role here is read-only.
-        </Alert>
-      )}
-
-      <Card title="Member list">
-        <MembersList />
-      </Card>
-    </div>
+      </div>
+    </RequireLeadership>
   );
 }

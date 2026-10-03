@@ -27,14 +27,13 @@ function isoToday(): string {
  *
  * The PDF is rendered server-side; this only picks the scope and window and
  * hands the blob to the browser. The member picker is shown **only** to
- * chair/treasurer because `statement.py:208` rejects any other member id with a
- * 403 — offering it to plain members would manufacture guaranteed failures.
+ * executive because the backend rejects cross-member statement scopes for
+ * regular members — offering those choices would manufacture guaranteed 403s.
  */
 export function StatementDownload() {
   const { activeChamaId } = useChama();
   const { capabilities } = useMemberRoles(activeChamaId);
-  const canPickMember =
-    capabilities.isChair || capabilities.isTreasurer;
+  const canPickMember = capabilities.isLeadership;
 
   const chamaId = activeChamaId;
   const [dateFrom, setDateFrom] = useState(() => `${isoToday().slice(0, 7)}-01`);

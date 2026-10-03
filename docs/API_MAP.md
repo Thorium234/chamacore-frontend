@@ -19,12 +19,21 @@ Authorization: Bearer <access_token>
 
 ## Confirmed endpoints used by the SPA
 
+Chama financial visibility is role-scoped by the backend: CHAIRPERSON,
+TREASURER, and SECRETARY may view group records. Other active members can view
+only their own contributions, shares, loans, payouts, payment intents,
+registration-fee details, membership row, and statement. The frontend scopes
+those pages and redirects non-executives away from member-management, audit,
+and ledger pages. `PLATFORM_ADMIN` gets aggregate platform statistics on the
+dashboard; the global role alone does not grant access to member financial
+records inside a Chama.
+
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | /chamas | My Chamas (ACTIVE memberships only) |
 | GET | /chamas/{id}/audit-events | `?limit` (1..500) & `offset`; bare list, no page envelope |
 | GET | /chamas/{id}/memberships/{membership_id}/registration-fee/payments | Fee payment history (CONFIRMED / REVERSED) |
-| POST | /chamas/{id}/statements | `?from` & `to` (ISO dates) & `membership_id`; returns an `application/pdf` blob. `membership_id` omitted = caller only, for chair/treasurer `all` = whole Chama. No JSON variant. |
+| GET | /chamas/{id}/statements | `?from` & `to` (ISO dates) & optional `membership_id`; returns an `application/pdf` blob. Omitted membership scope is own-only for members and whole-Chama for executives. No JSON variant. |
 | GET | /notifications | `?unread_only` & `limit` & `offset` & `chama_id` |
 | GET | /notifications/unread-count | `{ unread_count }` |
 | POST | /notifications/{id}/read | 204 |

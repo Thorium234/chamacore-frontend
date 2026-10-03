@@ -1,6 +1,7 @@
 "use client";
 
 import { useChama } from "@/features/chamas/ChamaContext";
+import { useMemberRoles } from "@/features/roles/useMemberRoles";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
@@ -18,41 +19,54 @@ import { LedgerHistory } from "@/features/ledger/LedgerHistory";
  */
 export default function ActivityPage() {
   const { activeChamaId } = useChama();
+  const { capabilities, isLoading } = useMemberRoles(activeChamaId);
+  const isLeadership = capabilities.isLeadership;
 
   return (
     <div>
       <PageHeader
-        title="Group activity"
-        description="A read-only view of this Chama's finances, visible to every active member."
+        title={isLeadership ? "Group activity" : "My activity"}
+        description={isLeadership
+          ? "A read-only view of this Chama's financial activity."
+          : "Your own contribution and share activity in this Chama."}
       />
 
       <Alert tone="info" className="mb-6">
-        This page only displays what the Chama has recorded. Settling contributions, issuing
-        shares, and managing members are done on their own pages by the people allowed to do them.
+        {isLeadership
+          ? "This page shows group financial activity. Settling contributions, issuing shares, and managing members are done on their own pages."
+          : "This page is limited to your own contribution and share records. Group balances and other members' ledger activity are available to Chama executives."}
       </Alert>
 
       <div className="space-y-6">
-        <Card title="Balances" description="Straight from the Chama ledger.">
-          <GroupBalances />
-        </Card>
+        {isLoading ? null : isLeadership ? (
+          <Card title="Balances" description="Straight from the Chama ledger.">
+            <GroupBalances />
+          </Card>
+        ) : null}
 
         <Card
-          title="Group contributions"
-          description="What every member has contributed, and its settlement status."
+          title={isLeadership ? "Group contributions" : "My contributions"}
+          description={isLeadership
+            ? "What every member has contributed, and its settlement status."
+            : "Your recorded contributions and their settlement status."}
         >
           <GroupContributions />
         </Card>
 
         <Card
-          title="Group shares"
-          description="Share units issued per member. Unit price is server configuration and is not exposed."
+          title={isLeadership ? "Group shares" : "My shares"}
+          description={isLeadership
+            ? "Share units issued per member. Unit price is server configuration and is not exposed."
+            : "Your share units created from confirmed contributions."}
         >
           <GroupShares />
         </Card>
 
-        <Card title="Recent transactions" description="Newest first.">
-          {activeChamaId ? <LedgerHistory chamaId={activeChamaId} /> : null}
-        </Card>
+        {isLoading ? null : isLeadership ? (
+          <Card title="Recent transactions" description="Newest first.">
+            {activeChamaId ? <LedgerHistory chamaId={activeChamaId} /> : null}
+          </Card>
+        ) : null}
       </div>
     </div>
   );

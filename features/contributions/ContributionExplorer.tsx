@@ -4,8 +4,9 @@ import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { useChama } from "@/features/chamas/ChamaContext";
+import { useMemberRoles } from "@/features/roles/useMemberRoles";
 import { Card } from "@/components/ui/Card";
-import { TableSkeleton } from "@/components/ui/States";
+import { EmptyState, TableSkeleton } from "@/components/ui/States";
 import { ContributionFiltersBar } from "@/features/contributions/ContributionFiltersBar";
 import { ContributionList } from "@/features/contributions/ContributionList";
 import {
@@ -26,6 +27,7 @@ const STATUSES: ContributionStatus[] = ["PENDING", "CONFIRMED", "REVERSED"];
 export function ContributionExplorer() {
   const { activeChamaId } = useChama();
   const chamaId = activeChamaId;
+  const { myMembership, capabilities } = useMemberRoles(chamaId);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -47,6 +49,14 @@ export function ContributionExplorer() {
           : undefined,
     };
   }, [searchParams]);
+  const effectiveFilters = capabilities.isLeadership
+    ? filters
+    : { ...filters, membership_id: myMembership?.id };
+  const visibleMemberships = capabilities.isLeadership
+    ? memberships.data ?? []
+    : myMembership
+      ? [myMembership]
+      : [];
 
   const setFilters = useCallback(
     (next: ContributionFilters) => {
@@ -63,17 +73,31 @@ export function ContributionExplorer() {
   return (
     <Card title="Contributions">
       <div className="mb-4">
-        <ContributionFiltersBar
-          filters={filters}
-          memberships={memberships.data ?? []}
-          onChange={setFilters}
-        />
+        {capabilities.isLeadership ? (
+          <ContributionFiltersBar
+            filters={effectiveFilters}
+            memberships={visibleMemberships}
+            onChange={setFilters}
+          />
+        ) : (
+          <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
+            Showing only your contribution history.
+          </p>
+        )}
       </div>
 
       {memberships.isLoading ? (
         <TableSkeleton rows={6} cols={5} />
+      ) : !capabilities.isLeadership && !myMembership ? (
+        <EmptyState
+          title="Membership not found"
+          description="Your active membership is not available in this Chama."
+        />
       ) : (
-        <ContributionList filters={filters} cacheKey={contributionsKey(chamaId ?? "", filters)} />
+        <ContributionList
+          filters={effectiveFilters}
+          cacheKey={contributionsKey(chamaId ?? "", effectiveFilters)}
+        />
       )}
     </Card>
   );

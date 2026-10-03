@@ -42,10 +42,10 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Overview",
     items: [
       { href: "/dashboard", label: "Dashboard", exact: true },
-      { href: "/activity", label: "Group activity" },
+      { href: "/activity", label: "Activity" },
       { href: "/contributions", label: "Contributions" },
       { href: "/shares", label: "Shares" },
-      { href: "/ledger", label: "Ledger" },
+      { href: "/ledger", label: "Ledger", requires: "isLeadership" },
       { href: "/loans", label: "Loans" },
       { href: "/payouts", label: "Payouts" },
       { href: "/payments", label: "Payments" },

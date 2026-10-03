@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { useChama } from "@/features/chamas/ChamaContext";
+import { useMemberRoles } from "@/features/roles/useMemberRoles";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Field";
 import { Table, Td } from "@/components/ui/Table";
@@ -18,6 +19,7 @@ import type { MembershipOut } from "@/types/api";
 function SharesViewer() {
   const { activeChamaId } = useChama();
   const chamaId = activeChamaId;
+  const { myMembership, capabilities, isLoading: rolesLoading } = useMemberRoles(chamaId);
   const searchParams = useSearchParams();
   const preselected = searchParams.get("membership");
 
@@ -27,10 +29,16 @@ function SharesViewer() {
   );
   const [selectedId, setSelectedId] = useState<string>("");
 
-  const selected =
-    memberships.data?.find((m) => m.id === selectedId) ??
-    memberships.data?.find((m) => m.id === preselected) ??
-    null;
+  const allowedMemberships = capabilities.isLeadership
+    ? memberships.data ?? []
+    : myMembership
+      ? [myMembership]
+      : [];
+  const selected = capabilities.isLeadership
+    ? allowedMemberships.find((m) => m.id === selectedId) ??
+      allowedMemberships.find((m) => m.id === preselected) ??
+      null
+    : myMembership ?? null;
 
   const shares = useQuery(
     chamaId && selected ? `${chamaId}:shares:${selected.id}` : null,
@@ -48,24 +56,30 @@ function SharesViewer() {
     [effectiveId, memberships.data]
   );
 
+  if (rolesLoading || (capabilities.isLeadership && memberships.isLoading)) {
+    return <TableSkeleton rows={5} cols={4} />;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="max-w-md">
-        <Select
-          label="Member"
-          value={selectionValue}
-          onChange={(event) => setSelectedId(event.target.value)}
-        >
-          <option value="" disabled>
-            Select a member to view shares…
-          </option>
-          {(memberships.data ?? []).map((membership) => (
-            <option key={membership.id} value={membership.id}>
-              {memberLabel(membership)}
+      {capabilities.isLeadership ? (
+        <div className="max-w-md">
+          <Select
+            label="Member"
+            value={selectionValue}
+            onChange={(event) => setSelectedId(event.target.value)}
+          >
+            <option value="" disabled>
+              Select a member to view shares…
             </option>
-          ))}
-        </Select>
-      </div>
+            {allowedMemberships.map((membership) => (
+              <option key={membership.id} value={membership.id}>
+                {memberLabel(membership)}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : null}
 
       {selected ? (
         <Card

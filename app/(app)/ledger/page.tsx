@@ -14,6 +14,7 @@ import { getLedgerAccounts } from "@/lib/api/ledger";
 import { formatAccountBalance } from "@/lib/format";
 import { LedgerHistory } from "@/features/ledger/LedgerHistory";
 import { AccountEntries } from "@/features/ledger/AccountEntries";
+import { RequireLeadership } from "@/features/roles/RequireLeadership";
 
 function LedgerViewer() {
   const { activeChamaId } = useChama();
@@ -91,21 +92,23 @@ function LedgerViewer() {
 
 export default function LedgerPage() {
   return (
-    <div>
-      <PageHeader
-        title="Ledger"
-        description="A read-only view of the official accounts, balances, and immutable transaction history."
-      />
-      <Suspense
-        fallback={
-          <div className="space-y-4">
-            <Skeleton className="h-32" />
-            <Skeleton className="h-56" />
-          </div>
-        }
-      >
-        <LedgerViewer />
-      </Suspense>
-    </div>
+    <RequireLeadership>
+      <div>
+        <PageHeader
+          title="Ledger"
+          description="A read-only view of the official accounts, balances, and immutable transaction history."
+        />
+        <Suspense
+          fallback={
+            <div className="space-y-4">
+              <Skeleton className="h-32" />
+              <Skeleton className="h-56" />
+            </div>
+          }
+        >
+          <LedgerViewer />
+        </Suspense>
+      </div>
+    </RequireLeadership>
   );
 }

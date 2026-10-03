@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useChama } from "@/features/chamas/ChamaContext";
+import { useMemberRoles } from "@/features/roles/useMemberRoles";
 import { Table, Td } from "@/components/ui/Table";
 import { StatusBadge } from "@/components/ui/Badge";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
@@ -30,6 +31,7 @@ const PAGE_SIZE = 25;
 export function GroupContributions() {
   const { activeChamaId } = useChama();
   const chamaId = activeChamaId;
+  const { myMembership, capabilities, isLoading: rolesLoading } = useMemberRoles(chamaId);
   const [filters, setFilters] = useState<ContributionFilters>({});
   const [offset, setOffset] = useState(0);
 
@@ -38,14 +40,28 @@ export function GroupContributions() {
   }, [chamaId, filters.membership_id, filters.period, filters.status]);
 
   const memberships = useQuery<MembershipOut[]>(
-    chamaId ? `${chamaId}:memberships` : null,
+    chamaId && capabilities.isLeadership ? `${chamaId}:memberships` : null,
     async () => (chamaId ? listMemberships(chamaId) : [])
   );
 
   const contributions = useQuery<ContributionOut[]>(
-    chamaId ? contributionsKey(chamaId, { ...filters, limit: PAGE_SIZE, offset }) : null,
+    chamaId && (capabilities.isLeadership || myMembership)
+      ? contributionsKey(chamaId, {
+          ...filters,
+          membership_id: capabilities.isLeadership ? filters.membership_id : myMembership?.id,
+          limit: PAGE_SIZE,
+          offset,
+        })
+      : null,
     async () =>
-      chamaId ? listContributions(chamaId, { ...filters, limit: PAGE_SIZE, offset }) : []
+      chamaId
+        ? listContributions(chamaId, {
+            ...filters,
+            membership_id: capabilities.isLeadership ? filters.membership_id : myMembership?.id,
+            limit: PAGE_SIZE,
+            offset,
+          })
+        : []
   );
 
   const membersById = useMemo(
@@ -56,7 +72,16 @@ export function GroupContributions() {
   const hasFilters =
     Boolean(filters.membership_id) || Boolean(filters.period) || Boolean(filters.status);
 
-  if (memberships.isLoading || contributions.isLoading) {
+  if (rolesLoading) return <TableSkeleton rows={5} cols={4} />;
+  if (!capabilities.isLeadership && !myMembership) {
+    return (
+      <EmptyState
+        title="Membership not found"
+        description="Your active membership is not available in this Chama."
+      />
+    );
+  }
+  if ((capabilities.isLeadership && memberships.isLoading) || contributions.isLoading) {
     return <TableSkeleton rows={5} cols={4} />;
   }
   if (contributions.error) {
@@ -65,11 +90,17 @@ export function GroupContributions() {
 
   return (
     <div className="space-y-4">
-      <ContributionFiltersBar
-        filters={filters}
-        memberships={memberships.data ?? []}
-        onChange={setFilters}
-      />
+      {capabilities.isLeadership ? (
+        <ContributionFiltersBar
+          filters={filters}
+          memberships={memberships.data ?? []}
+          onChange={setFilters}
+        />
+      ) : (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Showing only your contribution history.
+        </p>
+      )}
 
       {(contributions.data?.length ?? 0) === 0 ? (
         <EmptyState
@@ -82,16 +113,24 @@ export function GroupContributions() {
         />
       ) : (
         <>
-          <Table head={["Member", "Period", "Amount", "Status"]}>
+          <Table
+            head={
+              capabilities.isLeadership
+                ? ["Member", "Period", "Amount", "Status"]
+                : ["Period", "Amount", "Status"]
+            }
+          >
             {(contributions.data ?? []).map((contribution) => {
               const membership = membersById.get(contribution.membership_id);
               return (
                 <tr key={contribution.id}>
-                  <Td>
-                    {membership?.member
-                      ? `${membership.member.last_name} ${membership.member.first_name} (#${membership.membership_number})`
-                      : contribution.membership_id.slice(0, 8)}
-                  </Td>
+                  {capabilities.isLeadership ? (
+                    <Td>
+                      {membership?.member
+                        ? `${membership.member.last_name} ${membership.member.first_name} (#${membership.membership_number})`
+                        : contribution.membership_id.slice(0, 8)}
+                    </Td>
+                  ) : null}
                   <Td>{formatPeriod(contribution.period)}</Td>
                   <Td>{formatMoney(contribution.amount)}</Td>
                   <Td>
