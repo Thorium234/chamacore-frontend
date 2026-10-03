@@ -59,9 +59,12 @@ export function PaymentForm() {
   const [pendingIntentId, setPendingIntentId] = useState<string | null>(null);
   const [ignoredIntentIds, setIgnoredIntentIds] = useState<string[]>([]);
   const [confirmStopIntentId, setConfirmStopIntentId] = useState<string | null>(null);
+  const [uncertainIntentId, setUncertainIntentId] = useState<string | null>(null);
+  const [paymentFailureStage, setPaymentFailureStage] = useState<"creating" | "initiating" | null>(null);
 
   // One idempotency key per logical submit action — kept stable across retries.
   const idempotencyKeyRef = useRef<string | null>(null);
+  const createdIntentIdRef = useRef<string | null>(null);
 
   const { mutate, isPending, error, reset } = useMutation(
     async (input: { membershipId: string; phoneNumber: string | null }) => {
@@ -72,6 +75,8 @@ export function PaymentForm() {
         key = crypto.randomUUID();
         idempotencyKeyRef.current = key;
       }
+      setPaymentFailureStage("creating");
+      createdIntentIdRef.current = null;
       const intent = await createPaymentIntent(chamaId, {
         membership_id: input.membershipId,
         amount,
@@ -82,6 +87,8 @@ export function PaymentForm() {
         // to it when this is null (`app/services/payment_intent.py`).
         phone_number: input.phoneNumber,
       });
+      createdIntentIdRef.current = intent.id;
+      setPaymentFailureStage("initiating");
       const attempt = await initiatePaymentIntent(chamaId, intent.id, {
         connection_id: activeConnection.id,
       });
@@ -96,6 +103,9 @@ export function PaymentForm() {
         // The request has now reached a known API outcome. Network failures
         // retain the key for safe retries; a completed attempt starts a new key.
         idempotencyKeyRef.current = null;
+        createdIntentIdRef.current = null;
+        setPaymentFailureStage(null);
+        setUncertainIntentId(null);
         if (attempt.status === "FAILED") {
           // A terminal failed intent is a completed logical request. A corrected
           // phone/amount is a new request and therefore receives a new key.
@@ -113,12 +123,34 @@ export function PaymentForm() {
             : null
         );
       },
+      onError: () => {
+        const intentId = createdIntentIdRef.current;
+        if (intentId) {
+          // Intent creation succeeded, but initiation's response was lost or
+          // failed. Keep this intent blocking another request until checked.
+          setUncertainIntentId(intentId);
+          setPendingIntentId(intentId);
+          setAttemptStatus("UNKNOWN");
+          if (chamaId) refetchEntry(`${chamaId}:payment-intents`);
+        }
+      },
     }
+  );
+
+  const mutateExistingIntent = useMutation(
+    async (input: { chamaId: string; intentId: string; connectionId: string }) =>
+      initiatePaymentIntent(input.chamaId, input.intentId, {
+        connection_id: input.connectionId,
+      }),
+    { invalidates: chamaId ? moneyScopeKeys(chamaId) : [] }
   );
 
   useEffect(() => {
     idempotencyKeyRef.current = null;
     setPendingIntentId(null);
+    setUncertainIntentId(null);
+    setPaymentFailureStage(null);
+    createdIntentIdRef.current = null;
     setIgnoredIntentIds([]);
     setConfirmStopIntentId(null);
     setFailedAttempt(null);
@@ -172,10 +204,7 @@ export function PaymentForm() {
       setAmount("");
       setPayerPhone("");
     } else if (chamaId) {
-      // The failure may be a network loss after the provider accepted the push.
-      // Reload intent state so the user sees what actually happened before
-      // trying again — a retry reuses the same idempotency key, so a duplicate
-      // is rejected safely.
+      // Refresh local intent state after an uncertain response.
       refetchEntry(`${chamaId}:payment-intents`);
     }
   }
@@ -214,6 +243,7 @@ export function PaymentForm() {
       current.includes(intentId) ? current : [...current, intentId]
     );
     setPendingIntentId((current) => (current === intentId ? null : current));
+    setUncertainIntentId((current) => (current === intentId ? null : current));
     setConfirmStopIntentId(null);
     setPushedAmount(null);
     setPushedPhone(null);
@@ -245,12 +275,51 @@ export function PaymentForm() {
           {error ? (
             <Alert title="Could not start the payment">
               <p>{paymentErrorMessage(error)}</p>
-              <p className="mt-1">
-                The provider may still process the request. Open “Payment
-                intents” and use Refresh to reconcile before initiating again —
-                a retry reuses the same idempotency key, so a duplicate is
-                rejected safely.
-              </p>
+              {uncertainIntentId ? (
+                <>
+                  <p className="mt-1">
+                    Payment intent {uncertainIntentId.slice(0, 8)} was created, but its initiation
+                    result was not confirmed. Check or retry this same intent before starting another
+                    payment. Retrying does not create a second intent.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="mt-2"
+                    loading={mutateExistingIntent.isPending}
+                    disabled={isPending}
+                    onClick={async () => {
+                      if (!chamaId || !activeConnection || !uncertainIntentId) return;
+                      const retry = await mutateExistingIntent.mutate({
+                        chamaId,
+                        intentId: uncertainIntentId,
+                        connectionId: activeConnection.id,
+                      });
+                      if (retry) {
+                        setUncertainIntentId(null);
+                        setPendingIntentId(
+                          retry.status === "INITIATED" || retry.status === "TIMEOUT" || retry.status === "UNKNOWN"
+                            ? uncertainIntentId
+                            : null
+                        );
+                        setAttemptStatus(retry.status);
+                        reset();
+                        refetchEntry(`${chamaId}:payment-intents`);
+                      }
+                    }}
+                  >
+                    Check / retry this payment
+                  </Button>
+                </>
+              ) : paymentFailureStage === "creating" ? (
+                <p className="mt-1">
+                  The server did not confirm whether it created a payment intent. Retry with the same
+                  details; the same idempotency key is retained to avoid duplicate intents.
+                </p>
+              ) : (
+                <p className="mt-1">Review Payment intents before starting another payment.</p>
+              )}
             </Alert>
           ) : failedAttempt ? (
             <Alert tone="error" title="The payment request failed">
