@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { useChama } from "@/features/chamas/ChamaContext";
 import { Table, Td } from "@/components/ui/Table";
@@ -14,36 +14,26 @@ import { listMemberships } from "@/lib/api/memberships";
 import { formatDateTime, formatMoney, shortId } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { IntentAttemptsModal } from "@/features/payments/IntentAttemptsModal";
+import { usePaymentSettlementRefresh } from "@/features/payments/usePaymentSettlementRefresh";
+import { PageControls } from "@/components/ui/PageControls";
 import type { MembershipOut, PaymentIntentOut } from "@/types/api";
-
-const INTENT_REFRESH_MS = 15000;
 
 export function IntentsList() {
   const { activeChamaId } = useChama();
   const chamaId = activeChamaId;
+  const PAGE_SIZE = 25;
+  const [offset, setOffset] = useState(0);
   const [selectedIntent, setSelectedIntent] = useState<PaymentIntentOut | null>(null);
 
   const intents = useQuery(
-    chamaId ? `${chamaId}:payment-intents` : null,
-    async () => (chamaId ? listPaymentIntents(chamaId) : [])
+    chamaId ? `${chamaId}:payment-intents:list:${offset}` : null,
+    async () => (chamaId ? listPaymentIntents(chamaId, { limit: PAGE_SIZE, offset }) : [])
   );
+  usePaymentSettlementRefresh(chamaId, intents.data ?? [], chamaId ? `${chamaId}:payment-intents:list:${offset}` : undefined);
   const memberships = useQuery<MembershipOut[]>(
     chamaId ? `${chamaId}:memberships` : null,
     async () => (chamaId ? listMemberships(chamaId) : [])
   );
-
-  // While a payment is PROCESSING, quietly reload the list so a delayed STK
-  // callback is reflected without a manual refresh. Stops once nothing is in
-  // flight and never runs while the tab is hidden.
-  useEffect(() => {
-    if (!chamaId) return;
-    const inFlight = (intents.data ?? []).some((intent) => intent.status === "PROCESSING");
-    if (!inFlight) return;
-    const interval = window.setInterval(() => {
-      if (!document.hidden) refetchEntry(`${chamaId}:payment-intents`);
-    }, INTENT_REFRESH_MS);
-    return () => window.clearInterval(interval);
-  }, [chamaId, intents.data]);
 
   const membersById = new Map((memberships.data ?? []).map((m) => [m.id, m]));
   const memberFor = (id: string) => {
@@ -72,7 +62,7 @@ export function IntentsList() {
         <Button
           size="sm"
           variant="secondary"
-          onClick={() => chamaId && refetchEntry(`${chamaId}:payment-intents`)}
+          onClick={() => chamaId && refetchEntry(`${chamaId}:payment-intents:list:${offset}`)}
         >
           Refresh
         </Button>
@@ -123,6 +113,8 @@ export function IntentsList() {
           </tr>
         ))}
       </Table>
+
+      <PageControls offset={offset} pageSize={PAGE_SIZE} itemCount={intents.data?.length ?? 0} noun="payment intents" onPrevious={() => setOffset(Math.max(0, offset - PAGE_SIZE))} onNext={() => setOffset(offset + PAGE_SIZE)} />
 
       {chamaId && selectedIntent ? (
         <IntentAttemptsModal

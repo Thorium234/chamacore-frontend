@@ -99,7 +99,7 @@ export default function ProfilePage() {
 
       <Card
         title="Password"
-        description="Changing your password signs out every other session on this account."
+        description="Choose a strong password. Your current session stays signed in."
         className="mt-6"
       >
         <ChangePasswordForm />

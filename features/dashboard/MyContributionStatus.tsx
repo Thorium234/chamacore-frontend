@@ -13,6 +13,7 @@ import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { listContributions } from "@/lib/api/contributions";
 import { listPaymentIntents } from "@/lib/api/payments";
 import { useQuery } from "@/lib/query/hooks";
+import { usePaymentSettlementRefresh } from "@/features/payments/usePaymentSettlementRefresh";
 import { currentPeriod, formatDateTime, formatMoney, formatPeriod } from "@/lib/format";
 import type { ContributionOut, PaymentIntentOut } from "@/types/api";
 
@@ -41,8 +42,9 @@ export function MyContributionStatus() {
 
   const intents = useQuery<PaymentIntentOut[]>(
     chamaId && membershipId ? `${chamaId}:payment-intents` : null,
-    async () => (chamaId ? listPaymentIntents(chamaId) : [])
+    async () => (chamaId ? listPaymentIntents(chamaId, { limit: 100 }) : [])
   );
+  usePaymentSettlementRefresh(chamaId, intents.data ?? []);
 
   /**
    * The `membership_id` query filter is a newer backend addition. An older build
@@ -82,7 +84,11 @@ export function MyContributionStatus() {
   const latestSucceeded = useMemo(
     () =>
       [...myIntents]
-        .filter((intent) => intent.status === "SUCCEEDED")
+        .filter(
+          (intent) =>
+            intent.status === "SUCCEEDED" &&
+            (intent.purpose.toUpperCase().includes("CONTRIBUTION") || Boolean(intent.contribution_id))
+        )
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0] ?? null,
     [myIntents]
   );
@@ -93,8 +99,12 @@ export function MyContributionStatus() {
 
   // The exact confusing state this widget exists for: the provider confirmed the
   // payment, but no confirmed contribution exists for the current period yet.
-  const awaitingSettlement =
-    latestSucceeded !== null && (!thisPeriod || thisPeriod.status === "PENDING");
+  const succeededContributionIsUnsettled =
+    latestSucceeded !== null &&
+    (latestSucceeded.contribution_id
+      ? !mine.some((contribution) => contribution.id === latestSucceeded.contribution_id && contribution.status === "CONFIRMED")
+      : latestSucceeded.updated_at.slice(0, 7) === period && (!thisPeriod || thisPeriod.status === "PENDING"));
+  const awaitingSettlement = succeededContributionIsUnsettled;
 
   if (rolesLoading || contributions.isLoading) return <TableSkeleton rows={3} cols={3} />;
 

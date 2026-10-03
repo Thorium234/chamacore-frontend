@@ -18,7 +18,10 @@ import {
   logout as logoutApi,
   registerUser,
 } from "@/lib/api/auth";
-import { setSessionExpiredHandler } from "@/lib/api/client";
+import {
+  setPasswordChangeRequiredHandler,
+  setSessionExpiredHandler,
+} from "@/lib/api/client";
 import {
   clearSessionStorage,
   getAccessToken,
@@ -38,12 +41,14 @@ interface SessionContextValue {
   status: SessionStatus;
   user: UserOut | null;
   /**
-   * Server-driven password-change gate. The backend does not enforce this on any
-   * dependency (`app/api/deps.py:68`), so the app shell reads it and blocks the
-   * app until the password is changed.
+   * Server-driven password-change gate.
+   *
+   * `must_change_password` is returned by login, refresh, and `/auth/me`.
+   * The backend rejects authenticated API calls while it is set; this flag
+   * keeps the client routed to the only permitted password-change screen.
    */
   mustChangePassword: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<UserOut>;
   linkMember: (payload: MemberLinkPayload) => Promise<UserOut>;
   refreshSession: () => Promise<UserOut | null>;
@@ -95,17 +100,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setStatus("unauthenticated");
       }
     });
+    setPasswordChangeRequiredHandler(() => {
+      setUser((current) =>
+        current ? { ...current, must_change_password: true } : current
+      );
+    });
 
     return () => {
       cancelled = true;
       setSessionExpiredHandler(null);
+      setPasswordChangeRequiredHandler(null);
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const tokens: TokenOut = await loginApi(email, password);
+  /**
+   * `identifier` is the OAuth2 `username` form field. The backend resolves it as
+   * email, then normalized phone, then government ID
+   * (`app/services/auth.py::authenticate`). Phone and national ID live on the
+   * linked member record, so they only resolve for users whose `member_id` is
+   * set. Bad credentials return a deliberately generic 401 that does not reveal
+   * which identifier matched.
+   */
+  const login = useCallback(async (identifier: string, password: string) => {
+    const tokens: TokenOut = await loginApi(identifier, password);
     setTokens({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
     clearAll();
+    // `GET /auth/me` rather than trusting `TokenOut.must_change_password`: the
+    // profile is needed anyway, and it is the same field the gate reads.
     const me = await getMe();
     setUser(me);
     setStatus("authenticated");
@@ -128,23 +149,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Changing the password ends the session.
+   * Changing the password keeps the user signed in.
    *
-   * The backend revokes every refresh token for the user
-   * (`app/services/auth.py:105`) but the current access token stays valid until
-   * it expires. Leaving the client authenticated would look like a successful
-   * sign-in that silently dies ~120 minutes later, so we clear local state and
-   * make the user authenticate again with the new password.
+   * Verified against commit `6f56d9c`: `POST /auth/change-password` writes the
+   * hash and clears `must_change_password` in a single commit
+   * (`app/services/auth.py::change_password`), and returns a fresh `UserOut`. It
+   * revokes **nothing** — `revoke_all_for_user` exists in the repository but is
+   * called from nowhere — so the current access token and the current refresh
+   * token both stay valid afterwards. The endpoint's own docstring claims
+   * otherwise; do not trust it.
+   *
+   * So: re-read `/auth/me` to pick up the cleared flag, and leave the tokens
+   * alone. Forcing a re-login here would look like the change failed.
    */
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     await changePasswordApi({
       current_password: currentPassword,
       new_password: newPassword,
     });
-    clearSessionStorage();
-    clearAll();
-    setUser(null);
-    setStatus("unauthenticated");
+    const me = await getMe();
+    setUser(me);
   }, []);
 
   const logout = useCallback(async () => {

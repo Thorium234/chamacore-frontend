@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useChama } from "@/features/chamas/ChamaContext";
@@ -22,9 +22,12 @@ import {
 } from "@/lib/api/contributions";
 import { listMemberships } from "@/lib/api/memberships";
 import { moneyScopeKeys } from "@/lib/query/money-scope";
+import { PageControls } from "@/components/ui/PageControls";
 import { formatDate, formatDateTime, formatMoney, formatPeriod, shortId } from "@/lib/format";
 import { getErrorMessage } from "@/lib/api/errors";
 import type { ContributionOut, MembershipOut } from "@/types/api";
+
+const PAGE_SIZE = 25;
 
 export function ContributionList({
   filters = {},
@@ -44,10 +47,18 @@ export function ContributionList({
   const [reversing, setReversing] = useState<ContributionOut | null>(null);
   const [reverseNote, setReverseNote] = useState("");
   const [reverseError, setReverseError] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [chamaId, cacheKey, filters.membership_id, filters.period, filters.status]);
 
   const contributions = useQuery<ContributionOut[]>(
-    chamaId ? (cacheKey ?? `${chamaId}:contributions`) : null,
-    async () => (chamaId ? listContributions(chamaId, filters) : [])
+    chamaId ? `${cacheKey ?? `${chamaId}:contributions`}:page:${offset}` : null,
+    async () =>
+      chamaId
+        ? listContributions(chamaId, { ...filters, limit: PAGE_SIZE, offset })
+        : []
   );
   const memberships = useQuery<MembershipOut[]>(
     chamaId ? `${chamaId}:memberships` : null,
@@ -175,6 +186,17 @@ export function ContributionList({
           ))}
         </Table>
       )}
+
+      {!contributions.isLoading && !contributions.error ? (
+        <PageControls
+          offset={offset}
+          pageSize={PAGE_SIZE}
+          itemCount={contributions.data?.length ?? 0}
+          noun="contributions"
+          onPrevious={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
+          onNext={() => setOffset((current) => current + PAGE_SIZE)}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={confirmTarget !== null}

@@ -85,6 +85,9 @@ export function IntentAttemptsModal({
                   {attempt.status === "FAILED" || attempt.status === "TIMEOUT" ? (
                     <Alert tone="error" className="p-2 text-xs">
                       {attempt.failure_code ? <p>{attempt.failure_code}</p> : null}
+                      {attempt.failure_code === "PHONE_FORMAT" ? (
+                        <p>Use a Safaricom number in the format 07XXXXXXXX or 2547XXXXXXXX.</p>
+                      ) : null}
                       {attempt.failure_message_safe ? (
                         <p>{attempt.failure_message_safe}</p>
                       ) : null}

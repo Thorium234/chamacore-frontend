@@ -9,6 +9,7 @@ import { Input, Select } from "@/components/ui/Field";
 import { Badge, StatusBadge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { Table, Td } from "@/components/ui/Table";
+import { PageControls } from "@/components/ui/PageControls";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { RequirePlatformAdmin } from "@/features/platform/RequirePlatformAdmin";
 import {
@@ -42,9 +43,12 @@ import {
  * `app/services/platform.py:26`.
  */
 function PlatformConsole() {
+  const PAGE_SIZE = 50;
   const [chamaSearch, setChamaSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ChamaStatus | "">("");
   const [userSearch, setUserSearch] = useState("");
+  const [chamaOffset, setChamaOffset] = useState(0);
+  const [userOffset, setUserOffset] = useState(0);
   const [statusTarget, setStatusTarget] = useState<PlatformChamaOut | null>(null);
   const [nextStatus, setNextStatus] = useState<ChamaStatus | "">("");
   const [reason, setReason] = useState("");
@@ -52,20 +56,23 @@ function PlatformConsole() {
 
   const stats = useQuery("platform:stats", getPlatformStats);
 
+  const chamaKey = `platform:chamas:${chamaSearch.trim()}:${statusFilter}:${chamaOffset}`;
+  const userKey = `platform:users:${userSearch.trim()}:${userOffset}`;
   const chamas = useQuery(
-    "platform:chamas",
+    chamaKey,
     async () =>
       listPlatformChamas({
         search: chamaSearch || null,
         status: statusFilter || null,
-        limit: 100,
+        limit: PAGE_SIZE,
+        offset: chamaOffset,
       }),
     { refetchInterval: 60_000 }
   );
 
   const users = useQuery(
-    "platform:users",
-    async () => listPlatformUsers({ search: userSearch || null, limit: 100 }),
+    userKey,
+    async () => listPlatformUsers({ search: userSearch || null, limit: PAGE_SIZE, offset: userOffset }),
     { refetchInterval: 60_000 }
   );
 
@@ -162,15 +169,19 @@ function PlatformConsole() {
             <Input
               label="Search"
               value={chamaSearch}
-              onChange={(event) => setChamaSearch(event.target.value)}
+              onChange={(event) => {
+                setChamaSearch(event.target.value);
+                setChamaOffset(0);
+              }}
               placeholder="Name"
             />
             <Select
               label="Status"
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as ChamaStatus | "")
-              }
+              onChange={(event) => {
+                setStatusFilter(event.target.value as ChamaStatus | "");
+                setChamaOffset(0);
+              }}
             >
               <option value="">Any status</option>
               {(["PENDING", "ACTIVE", "SUSPENDED", "DISSOLVED"] as ChamaStatus[]).map(
@@ -230,6 +241,8 @@ function PlatformConsole() {
               ))}
             </Table>
           )}
+
+          <PageControls offset={chamaOffset} pageSize={PAGE_SIZE} itemCount={chamas.data?.length ?? 0} noun="Chamas" onPrevious={() => setChamaOffset(Math.max(0, chamaOffset - PAGE_SIZE))} onNext={() => setChamaOffset(chamaOffset + PAGE_SIZE)} />
 
           {statusTarget ? (
             <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-900 dark:bg-indigo-950">
@@ -297,7 +310,10 @@ function PlatformConsole() {
             <Input
               label="Search"
               value={userSearch}
-              onChange={(event) => setUserSearch(event.target.value)}
+              onChange={(event) => {
+                setUserSearch(event.target.value);
+                setUserOffset(0);
+              }}
               placeholder="Email"
             />
           </div>
@@ -387,6 +403,8 @@ function PlatformConsole() {
               })}
             </Table>
           )}
+
+          <PageControls offset={userOffset} pageSize={PAGE_SIZE} itemCount={users.data?.length ?? 0} noun="users" onPrevious={() => setUserOffset(Math.max(0, userOffset - PAGE_SIZE))} onNext={() => setUserOffset(userOffset + PAGE_SIZE)} />
 
           {passwordMutation.error ? (
             <Alert className="mt-4" title="Could not force a password reset">

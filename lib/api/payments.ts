@@ -82,8 +82,11 @@ export async function deletePaymentConnection(
 
 // ---- Intents ----
 
-export async function listPaymentIntents(chamaId: string): Promise<PaymentIntentOut[]> {
-  const { data } = await api.get<PaymentIntentOut[]>(`/chamas/${chamaId}/payment-intents`);
+export async function listPaymentIntents(
+  chamaId: string,
+  params: { limit?: number; offset?: number } = {}
+): Promise<PaymentIntentOut[]> {
+  const { data } = await api.get<PaymentIntentOut[]>(`/chamas/${chamaId}/payment-intents`, { params });
   return data;
 }
 

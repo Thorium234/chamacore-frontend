@@ -138,6 +138,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
 
+  useEffect(() => {
+    if (mustChangePassword && pathname !== "/change-password") {
+      router.replace("/change-password");
+    }
+  }, [mustChangePassword, pathname, router]);
+
   if (status === "loading" || status === "unauthenticated") {
     return (
       <main className="flex flex-1 items-center justify-center">
@@ -154,11 +160,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   /**
    * Hard gate on `must_change_password`.
    *
-   * No backend dependency enforces the flag (`app/api/deps.py:68` only checks
-   * token validity), so this is the only place the rule is enforced. It renders
-   * before the app chrome so nothing behind it can call a money endpoint.
+   * The backend enforces this flag on authenticated endpoints too. The shell
+   * gate keeps the user on the dedicated recovery route after any API response
+   * reports PASSWORD_CHANGE_REQUIRED.
    */
   if (mustChangePassword) {
+    if (pathname !== "/change-password") {
+      return (
+        <main className="flex flex-1 items-center justify-center">
+          <Spinner />
+        </main>
+      );
+    }
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-12">
         <Card

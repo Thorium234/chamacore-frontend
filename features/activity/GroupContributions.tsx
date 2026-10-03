@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useChama } from "@/features/chamas/ChamaContext";
 import { Table, Td } from "@/components/ui/Table";
@@ -14,8 +14,11 @@ import {
 } from "@/lib/api/contributions";
 import { listMemberships } from "@/lib/api/memberships";
 import { useQuery } from "@/lib/query/hooks";
+import { PageControls } from "@/components/ui/PageControls";
 import { formatMoney, formatPeriod } from "@/lib/format";
 import type { ContributionOut, MembershipOut } from "@/types/api";
+
+const PAGE_SIZE = 25;
 
 /**
  * Read-only group contributions list for every active member (transparency).
@@ -28,6 +31,11 @@ export function GroupContributions() {
   const { activeChamaId } = useChama();
   const chamaId = activeChamaId;
   const [filters, setFilters] = useState<ContributionFilters>({});
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    setOffset(0);
+  }, [chamaId, filters.membership_id, filters.period, filters.status]);
 
   const memberships = useQuery<MembershipOut[]>(
     chamaId ? `${chamaId}:memberships` : null,
@@ -35,9 +43,9 @@ export function GroupContributions() {
   );
 
   const contributions = useQuery<ContributionOut[]>(
-    chamaId ? contributionsKey(chamaId, { ...filters, limit: 100 }) : null,
+    chamaId ? contributionsKey(chamaId, { ...filters, limit: PAGE_SIZE, offset }) : null,
     async () =>
-      chamaId ? listContributions(chamaId, { ...filters, limit: 100 }) : []
+      chamaId ? listContributions(chamaId, { ...filters, limit: PAGE_SIZE, offset }) : []
   );
 
   const membersById = useMemo(
@@ -93,10 +101,14 @@ export function GroupContributions() {
               );
             })}
           </Table>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Showing up to the 100 most recent matching records. Narrow the filters to see older
-            ones.
-          </p>
+          <PageControls
+            offset={offset}
+            pageSize={PAGE_SIZE}
+            itemCount={contributions.data?.length ?? 0}
+            noun="contributions"
+            onPrevious={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
+            onNext={() => setOffset((current) => current + PAGE_SIZE)}
+          />
         </>
       )}
     </div>

@@ -62,10 +62,16 @@ api.interceptors.request.use((config) => {
 
 let refreshPromise: Promise<boolean> | null = null;
 let onSessionExpired: (() => void) | null = null;
+let onPasswordChangeRequired: (() => void) | null = null;
 
 /** Register a callback invoked when a refresh fails (session is over). */
 export function setSessionExpiredHandler(handler: (() => void) | null): void {
   onSessionExpired = handler;
+}
+
+/** Register the authenticated-app gate for backend-forced password changes. */
+export function setPasswordChangeRequiredHandler(handler: (() => void) | null): void {
+  onPasswordChangeRequired = handler;
 }
 
 async function doRefresh(): Promise<boolean> {
@@ -99,6 +105,11 @@ api.interceptors.response.use(
     const config = error.config as RetriableRequestConfig | undefined;
     const url = config?.url ?? "";
     const status = error.response?.status;
+    const apiError = toApiError(error);
+
+    if (apiError.code === "PASSWORD_CHANGE_REQUIRED") {
+      onPasswordChangeRequired?.();
+    }
 
     if (
       status === 401 &&
@@ -115,6 +126,6 @@ api.interceptors.response.use(
       onSessionExpired?.();
     }
 
-    return Promise.reject(toApiError(error));
+    return Promise.reject(apiError);
   }
 );

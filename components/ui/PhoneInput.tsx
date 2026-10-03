@@ -24,6 +24,7 @@ export function PhoneInput({
   hint,
   error,
   id,
+  required = true,
 }: {
   label?: string;
   value: string;
@@ -31,6 +32,7 @@ export function PhoneInput({
   hint?: string;
   error?: string | null;
   id?: string;
+  required?: boolean;
 }) {
   const normalized = value.trim() ? normalizePhone(value) : "";
   const looksValid = value.trim() === "" || isLikelyKenyanPhone(value);
@@ -39,7 +41,7 @@ export function PhoneInput({
     <>
       <Input
         label={label}
-        required
+        required={required}
         type="tel"
         inputMode="tel"
         autoComplete="tel"

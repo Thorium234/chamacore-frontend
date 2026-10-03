@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { Alert } from "@/components/ui/Alert";
 import { toApiError, getErrorMessage } from "@/lib/api/errors";
+import { PasswordChecklist } from "@/features/auth/PasswordChecklist";
+import { checkPassword, PASSWORD_MAX_LENGTH, splitPolicyMessage } from "@/lib/password-policy";
 
 export function RegisterForm() {
   const { register } = useSession();
@@ -18,18 +20,22 @@ export function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serverViolations, setServerViolations] = useState<string[] | null>(null);
+  const passwordCheck = useMemo(() => checkPassword(password, email.trim()), [password, email]);
+  const passwordsMatch = password === confirmPassword;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isPending) return;
     setError(null);
+    setServerViolations(null);
 
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (passwordCheck.violations.length > 0) {
+      setServerViolations(passwordCheck.violations);
       return;
     }
 
@@ -41,6 +47,8 @@ export function RegisterForm() {
       const apiError = toApiError(err);
       if (apiError.status === 409) {
         setError("An account with that email already exists. Try signing in.");
+      } else if (apiError.code === "PASSWORD_POLICY_VIOLATION") {
+        setServerViolations(splitPolicyMessage(apiError.message));
       } else {
         setError(getErrorMessage(apiError));
       }
@@ -66,6 +74,13 @@ export function RegisterForm() {
           {error}
         </Alert>
       ) : null}
+      {serverViolations ? (
+        <Alert className="mt-4" title="Choose a stronger password">
+          <ul className="list-disc space-y-0.5 pl-4">
+            {serverViolations.map((violation) => <li key={violation}>{violation}</li>)}
+          </ul>
+        </Alert>
+      ) : null}
 
       <div className="mt-5 space-y-4">
         <Input
@@ -74,7 +89,10 @@ export function RegisterForm() {
           autoComplete="email"
           required
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            setServerViolations(null);
+          }}
           placeholder="you@example.com"
         />
         <Input
@@ -82,16 +100,23 @@ export function RegisterForm() {
           type="password"
           autoComplete="new-password"
           required
-          minLength={8}
+          maxLength={PASSWORD_MAX_LENGTH}
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          hint="At least 8 characters. There is no reset-by-email flow yet, so choose something you can remember."
+          onChange={(event) => {
+            setPassword(event.target.value);
+            setServerViolations(null);
+          }}
+          hint="At least 10 characters, with an uppercase letter, a lowercase letter, a digit and a symbol."
         />
+        {password.length > 0 ? (
+          <PasswordChecklist check={passwordCheck} passwordsMatch={passwordsMatch} />
+        ) : null}
         <Input
           label="Confirm password"
           type="password"
           autoComplete="new-password"
           required
+          maxLength={PASSWORD_MAX_LENGTH}
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
         />

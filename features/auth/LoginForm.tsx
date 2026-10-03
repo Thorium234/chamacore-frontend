@@ -14,8 +14,8 @@ export function LoginForm() {
   const { login } = useSession();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "1";
-const passwordChanged = searchParams.get("password_changed") === "1";
-  const [email, setEmail] = useState("");
+  const passwordChanged = searchParams.get("password_changed") === "1";
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,11 @@ const passwordChanged = searchParams.get("password_changed") === "1";
     setError(null);
     setIsPending(true);
     try {
-      await login(email.trim(), password);
+      // Sent as the OAuth2 `username` form field. The backend resolves it as
+      // email, then phone, then government ID
+      // (`app/services/auth.py::authenticate`), so the field name on the wire
+      // is unchanged even though what it accepts has widened.
+      await login(identifier.trim(), password);
     } catch (err) {
       setError(getErrorMessage(toApiError(err)));
     } finally {
@@ -42,7 +46,7 @@ const passwordChanged = searchParams.get("password_changed") === "1";
     >
       <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Sign in</h1>
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        Sign in with the email and password you registered. Your member number is not needed.
+        Use the email, phone number or national ID on your member record, with your password.
       </p>
 
       {justRegistered ? (
@@ -67,13 +71,14 @@ const passwordChanged = searchParams.get("password_changed") === "1";
 
       <div className="mt-5 space-y-4">
         <Input
-          label="Email"
-          type="email"
-          autoComplete="email"
+          label="Email, phone or national ID"
+          type="text"
+          autoComplete="username"
           required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="you@example.com"
+          value={identifier}
+          onChange={(event) => setIdentifier(event.target.value)}
+          placeholder="you@example.com or 0712 345 678"
+          hint="Phone and national ID sign-in only work once leadership has linked your member record."
         />
         <Input
           label="Password"

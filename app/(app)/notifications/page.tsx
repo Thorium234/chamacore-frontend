@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -20,6 +20,9 @@ import { useQuery } from "@/lib/query/hooks";
 import { formatDateTime } from "@/lib/format";
 import { NOTIFICATION_KEYS } from "@/features/notifications/NotificationBell";
 import type { NotificationOut } from "@/types/api";
+import { PageControls } from "@/components/ui/PageControls";
+
+const PAGE_SIZE = 50;
 
 /**
  * Notification feed.
@@ -55,17 +58,23 @@ function notificationHref(notification: NotificationOut): string | null {
 
 export default function NotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [offset, setOffset] = useState(0);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const notifications = useQuery(
-    `${NOTIFICATION_KEYS.list}:${unreadOnly ? "unread" : "all"}`,
-    async () => listNotifications({ unread_only: unreadOnly, limit: 100 })
+    `${NOTIFICATION_KEYS.list}:${unreadOnly ? "unread" : "all"}:offset:${offset}`,
+    async () => listNotifications({ unread_only: unreadOnly, limit: PAGE_SIZE, offset })
   );
+
+  useEffect(() => {
+    setOffset(0);
+  }, [unreadOnly]);
 
   function refresh() {
     invalidate(NOTIFICATION_KEYS.list);
     invalidate(NOTIFICATION_KEYS.count);
+    setOffset(0);
   }
 
   async function handleMarkAll() {
@@ -133,7 +142,10 @@ export default function NotificationsPage() {
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => setUnreadOnly((value) => !value)}
+              onClick={() => {
+                setOffset(0);
+                setUnreadOnly((value) => !value);
+              }}
             >
               {unreadOnly ? "Show all" : "Show unread only"}
             </Button>
@@ -154,9 +166,11 @@ export default function NotificationsPage() {
           </p>
         ) : items.length === 0 ? (
           <EmptyState
-            title={unreadOnly ? "Nothing unread" : "No notifications yet"}
+            title={offset > 0 ? "No older notifications" : unreadOnly ? "Nothing unread" : "No notifications yet"}
             description={
-              unreadOnly
+              offset > 0
+                ? "There are no more notifications on this page. Load a newer page."
+                : unreadOnly
                 ? "You have read everything the Chama has sent you."
                 : "Confirmations, payments and approvals will appear here."
             }
@@ -222,6 +236,16 @@ export default function NotificationsPage() {
             })}
           </ul>
         )}
+        {!notifications.isLoading && !notifications.error ? (
+          <PageControls
+            offset={offset}
+            pageSize={PAGE_SIZE}
+            itemCount={items.length}
+            noun="notifications"
+            onPrevious={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
+            onNext={() => setOffset((current) => current + PAGE_SIZE)}
+          />
+        ) : null}
       </Card>
     </div>
   );

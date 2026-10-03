@@ -14,11 +14,11 @@ export async function registerUser(payload: RegisterPayload): Promise<UserOut> {
 
 /** Login uses `application/x-www-form-urlencoded` (OAuth2 password grant). */
 export async function login(
-  email: string,
+  identifier: string,
   password: string
 ): Promise<TokenOut> {
   const form = new URLSearchParams();
-  form.append("username", email);
+  form.append("username", identifier);
   form.append("password", password);
   const { data } = await api.post<TokenOut>("/auth/token", form, {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -43,10 +43,9 @@ export async function linkMeToMember(payload: MemberLinkPayload): Promise<UserOu
 /**
  * `POST /auth/change-password` → `UserOut` (`app/api/v1/auth.py:123`).
  *
- * The backend clears `must_change_password` and revokes **every** refresh token
- * for that user (`app/services/auth.py:105`). The current access token stays
- * valid until it expires, so the caller must clear local tokens itself and force
- * a fresh sign-in — otherwise the user appears to stay logged in until expiry.
+ * The backend clears `must_change_password` and returns the updated user. The
+ * current access and refresh tokens remain usable; the session provider
+ * re-reads `/auth/me` so the forced-change gate can lift immediately.
  */
 export async function changePassword(payload: ChangePasswordPayload): Promise<UserOut> {
   const { data } = await api.post<UserOut>("/auth/change-password", payload);
