@@ -23,7 +23,7 @@ import { invalidate } from "@/lib/query/cache";
  * Without this, a platform admin who belongs to no Chama would be stuck on the
  * onboarding screen and could never reach the admin console.
  */
-const GLOBAL_ROUTES = ["/platform", "/dashboard", "/profile"];
+const GLOBAL_ROUTES = ["/platform", "/dashboard", "/profile", "/change-password"];
 
 function MenuIcon() {
   return (
@@ -158,7 +158,21 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [mustChangePassword, pathname, router]);
 
+  useEffect(() => {
+    if (!isCheckingPlatformAdmin && isAdmin && !GLOBAL_ROUTES.some((route) => pathname.startsWith(route))) {
+      router.replace("/dashboard");
+    }
+  }, [isAdmin, isCheckingPlatformAdmin, pathname, router]);
+
   if (status === "loading" || status === "unauthenticated") {
+    return (
+      <main className="flex flex-1 items-center justify-center">
+        <Spinner />
+      </main>
+    );
+  }
+
+  if (!isCheckingPlatformAdmin && isAdmin && !isGlobalRoute) {
     return (
       <main className="flex flex-1 items-center justify-center">
         <Spinner />
@@ -203,6 +217,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
+  if (isCheckingPlatformAdmin) {
+    return (
+      <main className="flex flex-1 items-center justify-center">
+        <Spinner />
+      </main>
+    );
+  }
+
   async function handleRefreshSession() {
     if (!activeChamaId || refreshingSession) return;
     setRefreshingSession(true);
@@ -237,14 +259,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               {navOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
             <span className="text-lg font-semibold text-indigo-600">ChamaCore</span>
-            {activeChamaId ? <ChamaSwitcher /> : null}
+            {!isAdmin && activeChamaId ? <ChamaSwitcher /> : null}
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden max-w-48 truncate text-sm text-zinc-500 dark:text-zinc-400 sm:inline">
               {user?.email}
             </span>
             <ThemeToggle />
-            <NotificationBell />
+            {!isAdmin ? <NotificationBell /> : null}
             <Button variant="secondary" size="sm" onClick={handleLogout}>
               Sign out
             </Button>
@@ -268,7 +290,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             children
           ) : !activeChamaId ? (
             <Onboarding
-              canCreateChama={!isCheckingPlatformAdmin && !isAdmin && !user?.member_id}
+              canCreateChama={!isCheckingPlatformAdmin && !isAdmin}
               isPlatformAdmin={isAdmin}
             />
           ) : chamaError ? (

@@ -15,7 +15,6 @@ import type {
   PlatformChamaOut,
   PlatformChamaStatusUpdate,
   PlatformStatsOut,
-  PlatformUserListParams,
   PlatformUserOut,
 } from "@/types/api";
 
@@ -69,41 +68,22 @@ export async function setPlatformChamaStatus(
   return data;
 }
 
-export async function listPlatformUsers(
-  params: PlatformUserListParams = {}
-): Promise<PlatformUserOut[]> {
-  const { data } = await api.get<PlatformUserOut[]>("/platform/users", { params });
+export async function listPlatformAdmins(): Promise<PlatformUserOut[]> {
+  const { data } = await api.get<PlatformUserOut[]>("/platform/admins");
   return data;
 }
 
-export async function grantPlatformAdmin(userId: string): Promise<PlatformUserOut> {
+export async function grantPlatformAdmin(email: string): Promise<PlatformUserOut> {
   const { data } = await api.post<PlatformUserOut>(
-    `/platform/users/${userId}/roles/PLATFORM_ADMIN`
+    "/platform/admins",
+    { email }
   );
   return data;
 }
 
 export async function revokePlatformAdmin(userId: string): Promise<PlatformUserOut> {
   const { data } = await api.delete<PlatformUserOut>(
-    `/platform/users/${userId}/roles/PLATFORM_ADMIN`
-  );
-  return data;
-}
-
-/**
- * Forces a password reset flag on a user. `reason` is a query param, not a body.
- *
- * The backend flips `must_change_password` to true; the frontend gate takes over
- * on that user's next login.
- */
-export async function requirePasswordChange(
-  userId: string,
-  reason?: string | null
-): Promise<PlatformUserOut> {
-  const { data } = await api.post<PlatformUserOut>(
-    `/platform/users/${userId}/require-password-change`,
-    undefined,
-    { params: reason ? { reason } : undefined }
+    `/platform/admins/${userId}`
   );
   return data;
 }

@@ -118,20 +118,26 @@ export function NavLinkList({
   const { capabilities, isLoading } = useMemberRoles(activeChamaId);
   const { isAdmin: isPlatformAdmin, isChecking: isCheckingAdmin } = usePlatformAdmin();
 
-  // While the memberships list loads we cannot know the caller's roles, so show
-  // every entry rather than flashing a collapsed nav and then re-flowing the
-  // layout. The backend still rejects anything the user may not do.
-  //
-  // The platform probe is treated the same way: showing the entry until the
-  // probe resolves avoids a link that appears seconds after load. It is the one
-  // gate where we briefly show something the user may not have — the route
-  // itself refuses non-admins.
+  // Until the global-role probe resolves, keep navigation limited to global
+  // pages. This prevents both a platform-link flash for members and a full
+  // Chama menu flash for platform administrators.
   const pending = isLoading || isCheckingAdmin;
-  const sections = NAV_SECTIONS.map((section) => ({
+  const sections = isCheckingAdmin
+    ? [
+        { title: "Overview", items: [{ href: "/dashboard", label: "Dashboard", exact: true }] },
+        { title: "Account", items: [{ href: "/profile", label: "Profile" }] },
+      ]
+    : isPlatformAdmin
+    ? [
+        { title: "Overview", items: [{ href: "/dashboard", label: "Dashboard", exact: true }] },
+        { title: "Platform", items: [{ href: "/platform", label: "Chama activation", requiresPlatformAdmin: true }] },
+        { title: "Account", items: [{ href: "/profile", label: "Profile" }] },
+      ]
+    : NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => {
-      if (pending) return true;
       if (item.requiresPlatformAdmin) return isPlatformAdmin;
+      if (pending) return true;
       return !item.requires || capabilities[item.requires];
     }),
   })).filter((section) => section.items.length > 0);

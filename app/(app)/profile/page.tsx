@@ -107,7 +107,7 @@ export default function ProfilePage() {
         <ChangePasswordForm />
       </Card>
 
-      {!user.member_id && !isAdmin && !isChecking ? (
+      {!isAdmin && !isChecking && !myChamas.some((chama) => chama.created_by_user_id === user.id) ? (
         <Card title="Create a Chama" className="mt-6">
           <CreateChamaForm />
         </Card>

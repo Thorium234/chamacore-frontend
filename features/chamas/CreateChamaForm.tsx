@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 import { useChama } from "@/features/chamas/ChamaContext";
+import { useSession } from "@/features/auth/session";
 import { createChama } from "@/lib/api/chamas";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Field";
@@ -13,6 +14,7 @@ import type { ChamaOut } from "@/types/api";
 
 export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) => void }) {
   const { seedActiveChama } = useChama();
+  const { user } = useSession();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [registrationFee, setRegistrationFee] = useState("0.00");
@@ -39,12 +41,16 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
         name: name.trim(),
         description: description.trim() || null,
         registration_fee_amount: registrationFee,
-        member: {
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          phone_number: phoneNumber.trim(),
-          government_id: governmentId.trim(),
-        },
+        ...(user?.member_id
+          ? {}
+          : {
+              member: {
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
+                phone_number: phoneNumber.trim(),
+                government_id: governmentId.trim(),
+              },
+            }),
       });
       seedActiveChama(chama);
       onCreated?.(chama);
@@ -92,7 +98,7 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
         />
       </div>
 
-      <fieldset className="space-y-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      {!user?.member_id ? <fieldset className="space-y-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
         <legend className="px-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Your member details
         </legend>
@@ -118,7 +124,11 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
           onChange={(event) => setGovernmentId(event.target.value)}
           placeholder="National ID / passport number"
         />
-      </fieldset>
+      </fieldset> : (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Your account details will be used to create your owner and chairperson membership.
+        </p>
+      )}
 
       <Button type="submit" className="w-full" loading={isPending}>
         Create Chama

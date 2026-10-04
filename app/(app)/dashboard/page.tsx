@@ -7,7 +7,6 @@ import { ErrorState, TableSkeleton } from "@/components/ui/States";
 import { useQuery } from "@/lib/query/hooks";
 import { getPlatformStats } from "@/lib/api/platform";
 import { usePlatformAdmin } from "@/features/platform/usePlatformAdmin";
-import { PlatformInsights } from "@/features/platform/PlatformInsights";
 import { MyContributionStatusCard } from "@/features/dashboard/MyContributionStatus";
 import { CollectionAnalyticsCard } from "@/features/dashboard/CollectionAnalyticsCard";
 
@@ -24,7 +23,7 @@ export default function DashboardPage() {
       <PageHeader
         title={isAdmin ? "Platform overview" : activeChama?.name ?? "My dashboard"}
         description={isAdmin
-          ? "Operational overview of ChamaCore groups and accounts across the platform."
+          ? "Chama activation and lifecycle overview."
           : "Your contribution activity and collection analytics for this Chama."}
       />
 
@@ -36,10 +35,9 @@ export default function DashboardPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard label="Total Chamas" value={String(platformStats.data?.total_chamas ?? 0)} />
               <StatCard label="Active Chamas" value={String(platformStats.data?.active_chamas ?? 0)} />
-              <StatCard label="Members" value={String(platformStats.data?.total_members ?? 0)} />
-              <StatCard label="User accounts" value={String(platformStats.data?.total_users ?? 0)} />
+              <StatCard label="Awaiting activation" value={String(platformStats.data?.pending_chamas ?? 0)} />
+              <StatCard label="Suspended" value={String(platformStats.data?.suspended_chamas ?? 0)} />
             </div>
-            {platformStats.data ? <PlatformInsights stats={platformStats.data} /> : null}
           </>
         )
       ) : (
@@ -50,7 +48,7 @@ export default function DashboardPage() {
                 {activeChama.status === "PENDING" ? "Awaiting activation" : `Chama ${activeChama.status.toLowerCase()}`}
               </h2>
               <p className="mt-1">
-                This Chama is read-only while its status is {activeChama.status.toLowerCase()}. You can review its records, but contributions and other changes are unavailable until a platform administrator activates it.
+                This Chama is read-only while its status is {activeChama.status.toLowerCase()}. You can review its records, but contributions and other changes are unavailable until a platform administrator activates it. The status is checked automatically while you wait.
               </p>
             </section>
           ) : null}

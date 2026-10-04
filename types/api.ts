@@ -93,7 +93,7 @@ export interface ChamaCreatePayload {
   name: string;
   description?: string | null;
   registration_fee_amount: string;
-  member: MemberDetails | null;
+  member?: MemberDetails | null;
 }
 
 export interface ChamaUpdatePayload {
@@ -602,20 +602,17 @@ export interface PlatformChamaOut {
   name: string;
   description: string | null;
   status: ChamaStatus;
-  registration_fee_amount: string;
   created_by_user_id: string;
+  owner_name: string | null;
+  owner_email: string;
   created_at: string;
   updated_at: string;
-  active_member_count: number;
-  membership_count: number;
 }
 
 export interface PlatformUserOut {
   id: string;
   email: string;
   is_active: boolean;
-  must_change_password: boolean;
-  member_id: string | null;
   /** Always `[]` for non-admins; may contain `PLATFORM_ADMIN`. */
   platform_roles: PlatformRoleName[];
   created_at: string;
@@ -627,8 +624,6 @@ export interface PlatformStatsOut {
   pending_chamas: number;
   suspended_chamas: number;
   dissolved_chamas: number;
-  total_users: number;
-  total_members: number;
   platform_admins: number;
 }
 
@@ -650,12 +645,6 @@ export interface PlatformChamaListParams {
   /** ≤255 chars. */
   search?: string | null;
   /** 1–500 server-side. */
-  limit?: number;
-  offset?: number;
-}
-
-export interface PlatformUserListParams {
-  search?: string | null;
   limit?: number;
   offset?: number;
 }

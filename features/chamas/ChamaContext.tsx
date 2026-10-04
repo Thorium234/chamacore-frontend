@@ -74,6 +74,16 @@ export function ChamaProvider({ children }: { children: ReactNode }) {
     }
   );
 
+  useEffect(() => {
+    const chamaId = chamaQuery.data?.id;
+    if (!chamaId || chamaQuery.data?.status === "ACTIVE") return;
+    const timer = window.setInterval(
+      () => invalidate(`${chamaId}:chama`),
+      20_000
+    );
+    return () => window.clearInterval(timer);
+  }, [chamaQuery.data?.id, chamaQuery.data?.status]);
+
   // Server-backed list of the authenticated user's Chamas. This is the only
   // source of truth for "which Chamas can I open"; localStorage is just the
   // last-selected preference.

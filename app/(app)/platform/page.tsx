@@ -1,107 +1,77 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card, StatCard } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
-import { Badge, StatusBadge } from "@/components/ui/Badge";
+import { StatusBadge, Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { Table, Td } from "@/components/ui/Table";
 import { PageControls } from "@/components/ui/PageControls";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { RequirePlatformAdmin } from "@/features/platform/RequirePlatformAdmin";
+import { useSession } from "@/features/auth/session";
 import {
   getPlatformStats,
+  listPlatformAdmins,
   listPlatformChamas,
-  listPlatformUsers,
-  requirePasswordChange,
-  revokePlatformAdmin,
   grantPlatformAdmin,
+  revokePlatformAdmin,
   setPlatformChamaStatus,
 } from "@/lib/api/platform";
 import { invalidate } from "@/lib/query/cache";
 import { useMutation, useQuery } from "@/lib/query/hooks";
-import { getErrorMessage } from "@/lib/api/errors";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import {
   PLATFORM_STATUS_TRANSITIONS,
   type ChamaStatus,
   type PlatformChamaOut,
+  type PlatformUserOut,
 } from "@/types/api";
 
-/**
- * Platform-admin console (F3).
- *
- * Access is decided by `isPlatformAdmin()`'s probe, not by a role on the user
- * object — the backend exposes no such field. This screen is only ever rendered
- * when that probe returned true, so the 403 handling here is defence in depth.
- *
- * Status changes use `PATCH /platform/chamas/{id}/status` with `{ status,
- * reason }`, and only legal transitions are offered, matching
- * `app/services/platform.py:26`.
- */
 function PlatformConsole() {
   const PAGE_SIZE = 50;
+  const { user } = useSession();
   const [chamaSearch, setChamaSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ChamaStatus | "">("");
-  const [userSearch, setUserSearch] = useState("");
   const [chamaOffset, setChamaOffset] = useState(0);
-  const [userOffset, setUserOffset] = useState(0);
   const [statusTarget, setStatusTarget] = useState<PlatformChamaOut | null>(null);
   const [nextStatus, setNextStatus] = useState<ChamaStatus | "">("");
   const [reason, setReason] = useState("");
   const [rowError, setRowError] = useState<string | null>(null);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [adminNotice, setAdminNotice] = useState<string | null>(null);
 
   const stats = useQuery("platform:stats", getPlatformStats);
-
   const chamaKey = `platform:chamas:${chamaSearch.trim()}:${statusFilter}:${chamaOffset}`;
-  const userKey = `platform:users:${userSearch.trim()}:${userOffset}`;
   const chamas = useQuery(
     chamaKey,
-    async () =>
-      listPlatformChamas({
-        search: chamaSearch || null,
-        status: statusFilter || null,
-        limit: PAGE_SIZE,
-        offset: chamaOffset,
-      }),
+    async () => listPlatformChamas({
+      search: chamaSearch || null,
+      status: statusFilter || null,
+      limit: PAGE_SIZE,
+      offset: chamaOffset,
+    }),
     { refetchInterval: 60_000 }
   );
-
-  const users = useQuery(
-    userKey,
-    async () => listPlatformUsers({ search: userSearch || null, limit: PAGE_SIZE, offset: userOffset }),
-    { refetchInterval: 60_000 }
-  );
-
+  const admins = useQuery("platform:admins", listPlatformAdmins, { refetchInterval: 60_000 });
   const allowedTargets = useMemo(
-    () =>
-      statusTarget ? PLATFORM_STATUS_TRANSITIONS[statusTarget.status] : [],
+    () => statusTarget ? PLATFORM_STATUS_TRANSITIONS[statusTarget.status] : [],
     [statusTarget]
   );
 
   const statusMutation = useMutation(
     async (input: { chamaId: string; status: ChamaStatus; reason: string | null }) =>
-      setPlatformChamaStatus(input.chamaId, {
-        status: input.status,
-        reason: input.reason || null,
-      }),
+      setPlatformChamaStatus(input.chamaId, { status: input.status, reason: input.reason }),
     { invalidates: ["platform:chamas", "platform:stats"] }
   );
-
-  const passwordMutation = useMutation(
-    async (userId: string) => requirePasswordChange(userId, "Reset by platform admin"),
-    { invalidates: ["platform:users"] }
-  );
-
-  const grantMutation = useMutation((userId: string) => grantPlatformAdmin(userId), {
-    invalidates: ["platform:users", "platform:stats"],
+  const grantMutation = useMutation(grantPlatformAdmin, {
+    invalidates: ["platform:admins", "platform:stats"],
   });
-
-  const revokeMutation = useMutation((userId: string) => revokePlatformAdmin(userId), {
-    invalidates: ["platform:users", "platform:stats"],
+  const revokeMutation = useMutation(revokePlatformAdmin, {
+    invalidates: ["platform:admins", "platform:stats"],
   });
 
   function openStatusDialog(chama: PlatformChamaOut) {
@@ -114,323 +84,123 @@ function PlatformConsole() {
   async function submitStatusChange() {
     if (!statusTarget || !nextStatus) return;
     setRowError(null);
-    const result = await statusMutation.mutate({
+    const updated = await statusMutation.mutate({
       chamaId: statusTarget.id,
       status: nextStatus,
       reason: reason.trim() || null,
     });
-    if (result) setStatusTarget(null);
+    if (updated) setStatusTarget(null);
     else if (statusMutation.error) setRowError(statusMutation.error.message);
+  }
+
+  async function addPlatformAdmin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAdminError(null);
+    setAdminNotice(null);
+    const created = await grantMutation.mutate(adminEmail.trim());
+    if (created) {
+      setAdminNotice(`${created.email} now has platform administrator access.`);
+      setAdminEmail("");
+    } else if (grantMutation.error) {
+      setAdminError(grantMutation.error.message);
+    }
+  }
+
+  async function removePlatformAdmin(admin: PlatformUserOut) {
+    setAdminError(null);
+    setAdminNotice(null);
+    const removed = await revokeMutation.mutate(admin.id);
+    if (removed) setAdminNotice(`Platform administrator access removed for ${removed.email}.`);
+    else if (revokeMutation.error) setAdminError(revokeMutation.error.message);
   }
 
   function refreshAll() {
     invalidate("platform:chamas");
-    invalidate("platform:users");
+    invalidate("platform:admins");
     invalidate("platform:stats");
   }
-
-  const statItems = stats.data;
 
   return (
     <div>
       <PageHeader
         title="Platform administration"
-        description="Cross-Chama lifecycle and user management. Every action is recorded in the audit log."
+        description="Review Chama owners and activate their groups. Platform access is managed separately from Chama chairperson roles."
       />
 
       {stats.error ? (
         <ErrorState message={stats.error.message} onRetry={stats.refetch} />
-      ) : statItems ? (
+      ) : stats.data ? (
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Total Chamas" value={String(statItems.total_chamas)} />
-          <StatCard label="Active" value={String(statItems.active_chamas)} />
-          <StatCard
-            label="Pending / Suspended"
-            value={`${statItems.pending_chamas} / ${statItems.suspended_chamas}`}
-          />
-          <StatCard
-            label="Users / Members"
-            value={`${statItems.total_users} / ${statItems.total_members}`}
-          />
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Total Chamas</p><p className="mt-1 text-2xl font-semibold">{stats.data.total_chamas}</p></div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Active</p><p className="mt-1 text-2xl font-semibold">{stats.data.active_chamas}</p></div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Awaiting activation</p><p className="mt-1 text-2xl font-semibold">{stats.data.pending_chamas}</p></div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Suspended</p><p className="mt-1 text-2xl font-semibold">{stats.data.suspended_chamas}</p></div>
         </div>
       ) : null}
 
       <div className="space-y-6">
-        <Card
-          title="Chamas"
-          description="Search and change lifecycle status. Dissolved is terminal."
-          actions={
-            <Button size="sm" variant="secondary" onClick={refreshAll}>
-              Refresh
-            </Button>
-          }
-        >
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div><h2 className="font-semibold">Chama activation</h2><p className="mt-1 text-sm text-zinc-500">Review each owner’s request and change the lifecycle status.</p></div>
+            <Button size="sm" variant="secondary" onClick={refreshAll}>Refresh</Button>
+          </div>
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Search"
-              value={chamaSearch}
-              onChange={(event) => {
-                setChamaSearch(event.target.value);
-                setChamaOffset(0);
-              }}
-              placeholder="Name"
-            />
-            <Select
-              label="Status"
-              value={statusFilter}
-              onChange={(event) => {
-                setStatusFilter(event.target.value as ChamaStatus | "");
-                setChamaOffset(0);
-              }}
-            >
+            <Input label="Search Chama" value={chamaSearch} onChange={(event) => { setChamaSearch(event.target.value); setChamaOffset(0); }} placeholder="Chama name" />
+            <Select label="Status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value as ChamaStatus | ""); setChamaOffset(0); }}>
               <option value="">Any status</option>
-              {(["PENDING", "ACTIVE", "SUSPENDED", "DISSOLVED"] as ChamaStatus[]).map(
-                (status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                )
-              )}
+              {(["PENDING", "ACTIVE", "SUSPENDED", "DISSOLVED"] as ChamaStatus[]).map((status) => <option key={status} value={status}>{status}</option>)}
             </Select>
           </div>
-
-          {rowError ? (
-            <Alert className="mb-4" title="Could not change status">
-              {rowError}
-            </Alert>
-          ) : null}
-
-          {chamas.error ? (
-            <ErrorState message={chamas.error.message} onRetry={chamas.refetch} />
-          ) : chamas.isLoading ? (
-            <TableSkeleton rows={5} cols={5} />
-          ) : (chamas.data?.length ?? 0) === 0 ? (
-            <EmptyState
-              title="No Chamas match"
-              description="Adjust the search or status filter."
-            />
-          ) : (
-            <Table head={["Chama", "Status", "Members", "Fee", "Actions"]}>
-              {(chamas.data ?? []).map((chama) => (
-                <tr key={chama.id}>
-                  <Td>
-                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                      {chama.name}
-                    </span>
-                    <span className="block text-xs text-zinc-400">
-                      {chama.id.slice(0, 8)}
-                    </span>
-                  </Td>
-                  <Td>
-                    <StatusBadge status={chama.status} />
-                  </Td>
-                  <Td>
-                    {chama.active_member_count} / {chama.membership_count}
-                  </Td>
-                  <Td>{formatMoney(chama.registration_fee_amount)}</Td>
-                  <Td>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => openStatusDialog(chama)}
-                    >
-                      Change status
-                    </Button>
-                  </Td>
-                </tr>
-              ))}
+          {rowError ? <Alert className="mb-4" title="Could not change status">{rowError}</Alert> : null}
+          {chamas.error ? <ErrorState message={chamas.error.message} onRetry={chamas.refetch} /> : chamas.isLoading ? <TableSkeleton rows={5} cols={4} /> : (chamas.data?.length ?? 0) === 0 ? <EmptyState title="No Chamas match" description="Adjust the search or status filter." /> : (
+            <Table head={["Chama", "Owner", "Status", "Actions"]}>
+              {(chamas.data ?? []).map((chama) => <tr key={chama.id}>
+                <Td><span className="font-medium">{chama.name}</span><span className="block text-xs text-zinc-400">Created {formatDate(chama.created_at)}</span></Td>
+                <Td><span className="font-medium">{chama.owner_name ?? "Account owner"}</span><span className="block text-xs text-zinc-500">{chama.owner_email}</span></Td>
+                <Td><StatusBadge status={chama.status} /></Td>
+                <Td><Button size="sm" variant="secondary" onClick={() => openStatusDialog(chama)}>Change status</Button></Td>
+              </tr>)}
             </Table>
           )}
-
           <PageControls offset={chamaOffset} pageSize={PAGE_SIZE} itemCount={chamas.data?.length ?? 0} noun="Chamas" onPrevious={() => setChamaOffset(Math.max(0, chamaOffset - PAGE_SIZE))} onNext={() => setChamaOffset(chamaOffset + PAGE_SIZE)} />
+          {statusTarget ? <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-900 dark:bg-indigo-950">
+            <p className="text-sm font-medium">Change status for {statusTarget.name}</p>
+            <p className="mt-1 text-xs">Current status: {statusTarget.status}.</p>
+            {allowedTargets.length === 0 ? <p className="mt-3 text-sm">This Chama is dissolved and cannot be reactivated.</p> : <div className="mt-3 space-y-3">
+              <Select label="New status" value={nextStatus} onChange={(event) => setNextStatus(event.target.value as ChamaStatus)}>{allowedTargets.map((status) => <option key={status} value={status}>{status}</option>)}</Select>
+              <Input label="Reason (optional)" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} />
+              <div className="flex gap-2"><Button size="sm" loading={statusMutation.isPending} disabled={!nextStatus} onClick={submitStatusChange}>Apply</Button><Button size="sm" variant="secondary" onClick={() => setStatusTarget(null)}>Cancel</Button></div>
+            </div>}
+          </div> : null}
+        </section>
 
-          {statusTarget ? (
-            <div className="mt-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-900 dark:bg-indigo-950">
-              <p className="text-sm font-medium text-indigo-900 dark:text-indigo-100">
-                Change status for {statusTarget.name}
-              </p>
-              <p className="mt-1 text-xs text-indigo-700 dark:text-indigo-300">
-                Currently {statusTarget.status}. Legal next steps are listed below; the server
-                rejects anything else with 400 INVALID_STATE.
-              </p>
-              {allowedTargets.length === 0 ? (
-                <p className="mt-3 text-sm text-indigo-800 dark:text-indigo-200">
-                  This Chama is dissolved, which is terminal. No further transitions are possible.
-                </p>
-              ) : (
-                <div className="mt-3 space-y-3">
-                  <Select
-                    label="New status"
-                    value={nextStatus}
-                    onChange={(event) =>
-                      setNextStatus(event.target.value as ChamaStatus)
-                    }
-                  >
-                    {allowedTargets.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </Select>
-                  <Input
-                    label="Reason"
-                    value={reason}
-                    onChange={(event) => setReason(event.target.value)}
-                    placeholder="Recorded with the transition"
-                    hint="Optional, up to 500 characters."
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      loading={statusMutation.isPending}
-                      disabled={!nextStatus}
-                      onClick={submitStatusChange}
-                    >
-                      Apply
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setStatusTarget(null)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </Card>
-
-        <Card
-          title="Users"
-          description="Force a password reset or grant and revoke platform admin."
-        >
-          <div className="mb-4">
-            <Input
-              label="Search"
-              value={userSearch}
-              onChange={(event) => {
-                setUserSearch(event.target.value);
-                setUserOffset(0);
-              }}
-              placeholder="Email"
-            />
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="font-semibold">Platform administrators</h2>
+          <p className="mt-1 text-sm text-zinc-500">Add another platform operator by the email on their existing account. This does not assign a Chama role.</p>
+          <form onSubmit={addPlatformAdmin} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1"><Input label="Account email" type="email" required value={adminEmail} onChange={(event) => setAdminEmail(event.target.value)} placeholder="operator@example.com" /></div>
+            <Button type="submit" loading={grantMutation.isPending}>Grant platform access</Button>
+          </form>
+          {adminNotice ? <p className="mt-3 text-sm text-emerald-700" role="status">{adminNotice}</p> : null}
+          {adminError ? <Alert className="mt-3" title="Could not update platform admins">{adminError}</Alert> : null}
+          <div className="mt-5">
+            {admins.error ? <ErrorState message={admins.error.message} onRetry={admins.refetch} /> : admins.isLoading ? <TableSkeleton rows={2} cols={3} /> : !admins.data?.length ? <EmptyState title="No platform admins" description="An administrator will appear here once assigned." /> : (
+              <Table head={["Administrator", "Status", "Access", ""]}>
+                {admins.data.map((admin) => <tr key={admin.id}>
+                  <Td><span className="font-medium">{admin.email}</span><span className="block text-xs text-zinc-400">Added {formatDate(admin.created_at)}</span></Td>
+                  <Td>{admin.is_active ? <Badge tone="green">Active account</Badge> : <Badge tone="amber">Disabled account</Badge>}</Td>
+                  <Td><Badge tone="indigo">PLATFORM_ADMIN</Badge></Td>
+                  <Td>{admin.id !== user?.id ? <Button size="sm" variant="danger" loading={revokeMutation.isPending} onClick={() => removePlatformAdmin(admin)}>Remove</Button> : <span className="text-xs text-zinc-400">You</span>}</Td>
+                </tr>)}
+              </Table>
+            )}
           </div>
-
-          {users.error ? (
-            <ErrorState message={users.error.message} onRetry={users.refetch} />
-          ) : users.isLoading ? (
-            <TableSkeleton rows={5} cols={5} />
-          ) : (users.data?.length ?? 0) === 0 ? (
-            <EmptyState title="No users match" description="Adjust the search." />
-          ) : (
-            <Table head={["Email", "Active", "Password", "Platform roles", "Actions"]}>
-              {(users.data ?? []).map((platformUser) => {
-                const isAdmin = platformUser.platform_roles.includes(
-                  "PLATFORM_ADMIN"
-                );
-                return (
-                  <tr key={platformUser.id}>
-                    <Td>
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {platformUser.email}
-                      </span>
-                      <span className="block text-xs text-zinc-400">
-                        joined {formatDate(platformUser.created_at)}
-                      </span>
-                    </Td>
-                    <Td>
-                      {platformUser.is_active ? "Yes" : "No"}
-                    </Td>
-                    <Td>
-                      {platformUser.must_change_password ? (
-                        <Badge tone="amber">Must reset</Badge>
-                      ) : (
-                        <span className="text-xs text-zinc-400">—</span>
-                      )}
-                    </Td>
-                    <Td>
-                      {platformUser.platform_roles.length === 0 ? (
-                        <span className="text-xs text-zinc-400">None</span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {platformUser.platform_roles.map((role) => (
-                            <Badge key={role} tone="indigo">
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </Td>
-                    <Td>
-                      <div className="flex flex-wrap gap-1.5">
-                        {!platformUser.must_change_password ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            loading={passwordMutation.isPending}
-                            onClick={() =>
-                              passwordMutation.mutate(platformUser.id)
-                            }
-                          >
-                            Force reset
-                          </Button>
-                        ) : null}
-                        {isAdmin ? (
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            loading={revokeMutation.isPending}
-                            onClick={() => revokeMutation.mutate(platformUser.id)}
-                          >
-                            Revoke admin
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            loading={grantMutation.isPending}
-                            onClick={() => grantMutation.mutate(platformUser.id)}
-                          >
-                            Make admin
-                          </Button>
-                        )}
-                      </div>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </Table>
-          )}
-
-          <PageControls offset={userOffset} pageSize={PAGE_SIZE} itemCount={users.data?.length ?? 0} noun="users" onPrevious={() => setUserOffset(Math.max(0, userOffset - PAGE_SIZE))} onNext={() => setUserOffset(userOffset + PAGE_SIZE)} />
-
-          {passwordMutation.error ? (
-            <Alert className="mt-4" title="Could not force a password reset">
-              {getErrorMessage(passwordMutation.error)}
-            </Alert>
-          ) : null}
-          {grantMutation.error ? (
-            <Alert className="mt-4" title="Could not grant platform admin">
-              {getErrorMessage(grantMutation.error)}
-            </Alert>
-          ) : null}
-          {revokeMutation.error ? (
-            <Alert className="mt-4" title="Could not revoke platform admin">
-              {getErrorMessage(revokeMutation.error)}
-            </Alert>
-          ) : null}
-        </Card>
+        </section>
       </div>
     </div>
   );
 }
 
 export default function PlatformPage() {
-  return (
-    <RequirePlatformAdmin>
-      <PlatformConsole />
-    </RequirePlatformAdmin>
-  );
+  return <RequirePlatformAdmin><PlatformConsole /></RequirePlatformAdmin>;
 }
