@@ -73,6 +73,13 @@ The authoritative source is the current backend API contract.
 
 The frontend must treat the backend as authoritative.
 
+Collection analytics must come from `/chamas/{id}/analytics/collections`.
+The backend applies member-versus-executive scope and derives monthly
+contribution and registration-fee collections from posted ledger entries and
+reversals. Do not recreate these financial aggregates from list responses in
+the browser. Platform admins see platform lifecycle/account counts; their
+global role does not grant access to Chama financial analytics.
+
 The following must never be calculated independently in the browser when the backend provides the value:
 
 * account balance

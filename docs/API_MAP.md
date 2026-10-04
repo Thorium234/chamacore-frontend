@@ -32,6 +32,7 @@ records inside a Chama.
 |--------|------|-------|
 | GET | /chamas | My Chamas (ACTIVE memberships only) |
 | GET | /chamas/{id}/audit-events | `?limit` (1..500) & `offset`; bare list, no page envelope |
+| GET | /chamas/{id}/analytics/collections | Twelve monthly ledger-backed net collection buckets. Executives receive group totals; members receive their own only. Platform-admin grant alone does not grant Chama financial access. |
 | GET | /chamas/{id}/memberships/{membership_id}/registration-fee/payments | Fee payment history (CONFIRMED / REVERSED) |
 | GET | /chamas/{id}/statements | `?from` & `to` (ISO dates) & optional `membership_id`; returns an `application/pdf` blob. Omitted membership scope is own-only for members and whole-Chama for executives. No JSON variant. |
 | GET | /notifications | `?unread_only` & `limit` & `offset` & `chama_id` |

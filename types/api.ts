@@ -632,6 +632,19 @@ export interface PlatformStatsOut {
   platform_admins: number;
 }
 
+export interface CollectionAnalyticsMonthOut {
+  month: string;
+  contributions: string | number;
+  registration_fees: string | number;
+  total_collected: string | number;
+}
+
+export interface CollectionAnalyticsOut {
+  currency: string;
+  scope: "group" | "member";
+  months: CollectionAnalyticsMonthOut[];
+}
+
 export interface PlatformChamaListParams {
   status?: ChamaStatus | null;
   /** ≤255 chars. */
