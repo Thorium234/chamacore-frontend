@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useChama } from "@/features/chamas/ChamaContext";
 import { useMemberRoles } from "@/features/roles/useMemberRoles";
@@ -33,11 +33,14 @@ export function GroupContributions() {
   const chamaId = activeChamaId;
   const { myMembership, capabilities, isLoading: rolesLoading } = useMemberRoles(chamaId);
   const [filters, setFilters] = useState<ContributionFilters>({});
-  const [offset, setOffset] = useState(0);
-
-  useEffect(() => {
-    setOffset(0);
-  }, [chamaId, filters.membership_id, filters.period, filters.status]);
+  const pageScope = JSON.stringify([
+    chamaId,
+    filters.membership_id ?? null,
+    filters.period ?? null,
+    filters.status ?? null,
+  ]);
+  const [page, setPage] = useState({ scope: "", offset: 0 });
+  const offset = page.scope === pageScope ? page.offset : 0;
 
   const memberships = useQuery<MembershipOut[]>(
     chamaId && capabilities.isLeadership ? `${chamaId}:memberships` : null,
@@ -145,8 +148,10 @@ export function GroupContributions() {
             pageSize={PAGE_SIZE}
             itemCount={contributions.data?.length ?? 0}
             noun="contributions"
-            onPrevious={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
-            onNext={() => setOffset((current) => current + PAGE_SIZE)}
+            onPrevious={() =>
+              setPage({ scope: pageScope, offset: Math.max(0, offset - PAGE_SIZE) })
+            }
+            onNext={() => setPage({ scope: pageScope, offset: offset + PAGE_SIZE })}
           />
         </>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
 import { useChama } from "@/features/chamas/ChamaContext";
@@ -47,11 +47,15 @@ export function ContributionList({
   const [reversing, setReversing] = useState<ContributionOut | null>(null);
   const [reverseNote, setReverseNote] = useState("");
   const [reverseError, setReverseError] = useState<string | null>(null);
-  const [offset, setOffset] = useState(0);
-
-  useEffect(() => {
-    setOffset(0);
-  }, [chamaId, cacheKey, filters.membership_id, filters.period, filters.status]);
+  const pageScope = JSON.stringify([
+    chamaId,
+    cacheKey ?? null,
+    filters.membership_id ?? null,
+    filters.period ?? null,
+    filters.status ?? null,
+  ]);
+  const [page, setPage] = useState({ scope: "", offset: 0 });
+  const offset = page.scope === pageScope ? page.offset : 0;
 
   const contributions = useQuery<ContributionOut[]>(
     chamaId ? `${cacheKey ?? `${chamaId}:contributions`}:page:${offset}` : null,
@@ -193,8 +197,10 @@ export function ContributionList({
           pageSize={PAGE_SIZE}
           itemCount={contributions.data?.length ?? 0}
           noun="contributions"
-          onPrevious={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
-          onNext={() => setOffset((current) => current + PAGE_SIZE)}
+          onPrevious={() =>
+            setPage({ scope: pageScope, offset: Math.max(0, offset - PAGE_SIZE) })
+          }
+          onNext={() => setPage({ scope: pageScope, offset: offset + PAGE_SIZE })}
         />
       ) : null}
 

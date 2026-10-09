@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -58,7 +58,9 @@ function notificationHref(notification: NotificationOut): string | null {
 
 export default function NotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const pageScope = unreadOnly ? "unread" : "all";
+  const [page, setPage] = useState({ scope: "all", offset: 0 });
+  const offset = page.scope === pageScope ? page.offset : 0;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -67,9 +69,12 @@ export default function NotificationsPage() {
     async () => listNotifications({ unread_only: unreadOnly, limit: PAGE_SIZE, offset })
   );
 
-  useEffect(() => {
-    setOffset(0);
-  }, [unreadOnly]);
+  function setOffset(next: number | ((current: number) => number)) {
+    setPage({
+      scope: pageScope,
+      offset: typeof next === "function" ? next(offset) : next,
+    });
+  }
 
   function refresh() {
     invalidate(NOTIFICATION_KEYS.list);

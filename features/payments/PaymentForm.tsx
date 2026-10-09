@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
@@ -25,8 +25,16 @@ import type { MembershipOut, PaymentAttemptOut } from "@/types/api";
 
 export function PaymentForm() {
   const { activeChamaId } = useChama();
+  return (
+    <PaymentFormForChama
+      key={activeChamaId ?? "no-active-chama"}
+      chamaId={activeChamaId}
+    />
+  );
+}
+
+function PaymentFormForChama({ chamaId }: { chamaId: string | null }) {
   const { user } = useSession();
-  const chamaId = activeChamaId;
   const myMemberId = user?.member_id ?? null;
 
   const memberships = useQuery<MembershipOut[]>(
@@ -145,30 +153,6 @@ export function PaymentForm() {
     { invalidates: chamaId ? moneyScopeKeys(chamaId) : [] }
   );
 
-  useEffect(() => {
-    idempotencyKeyRef.current = null;
-    setPendingIntentId(null);
-    setUncertainIntentId(null);
-    setPaymentFailureStage(null);
-    createdIntentIdRef.current = null;
-    setIgnoredIntentIds([]);
-    setConfirmStopIntentId(null);
-    setFailedAttempt(null);
-    setPushedAmount(null);
-  }, [chamaId]);
-
-  useEffect(() => {
-    if (!pendingIntentId) return;
-    const intent = intents.data?.find((item) => item.id === pendingIntentId);
-    if (intent?.status === "SUCCEEDED") {
-      setAttemptStatus("SUCCEEDED");
-      setPendingIntentId(null);
-    } else if (intent?.status === "FAILED") {
-      setAttemptStatus("FAILED");
-      setPendingIntentId(null);
-    }
-  }, [intents.data, pendingIntentId]);
-
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isPending || !chamaId) return;
@@ -228,8 +212,16 @@ export function PaymentForm() {
       intent.status === "PROCESSING" &&
       !ignoredIntentIds.includes(intent.id)
   );
+  const trackedIntent = (intents.data ?? []).find((intent) => intent.id === pendingIntentId);
+  const terminalAttemptStatus =
+    trackedIntent?.status === "SUCCEEDED" || trackedIntent?.status === "FAILED"
+      ? trackedIntent.status
+      : null;
+  const visibleAttemptStatus = terminalAttemptStatus ?? attemptStatus;
   const blockingIntentId =
-    (pendingIntentId && !ignoredIntentIds.includes(pendingIntentId)
+    (pendingIntentId &&
+    !ignoredIntentIds.includes(pendingIntentId) &&
+    !terminalAttemptStatus
       ? pendingIntentId
       : null) ?? serverInFlightIntent?.id ?? null;
   const canSubmit =
@@ -328,18 +320,18 @@ export function PaymentForm() {
           ) : pushedAmount ? (
             <Alert
               tone={
-                attemptStatus === "FAILED"
+                visibleAttemptStatus === "FAILED"
                   ? "error"
-                  : attemptStatus === "SUCCEEDED"
+                  : visibleAttemptStatus === "SUCCEEDED"
                     ? "success"
                     : "info"
               }
               title={
-                attemptStatus === "SUCCEEDED"
+                visibleAttemptStatus === "SUCCEEDED"
                   ? "Payment confirmed"
-                  : attemptStatus === "FAILED"
+                  : visibleAttemptStatus === "FAILED"
                     ? "Payment request failed"
-                  : attemptStatus === "INITIATED"
+                  : visibleAttemptStatus === "INITIATED"
                     ? "Payment request sent"
                     : "Payment status is being confirmed"
               }
@@ -353,9 +345,9 @@ export function PaymentForm() {
                 .
               </p>
               <p className="mt-1">
-                {attemptStatus === "FAILED"
+                {visibleAttemptStatus === "FAILED"
                   ? "The provider reported a failure. Review this intent's attempt details before creating another payment."
-                  : attemptStatus === "SUCCEEDED"
+                  : visibleAttemptStatus === "SUCCEEDED"
                     ? "Your contribution and shares update from the backend after settlement. Refresh the contribution and shares views if they do not appear yet."
                     : "Your contribution and shares update only after M-Pesa confirms the payment and the backend settles it. Wait for the phone prompt and check “Payment intents” for the latest status."}
               </p>
