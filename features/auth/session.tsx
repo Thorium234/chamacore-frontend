@@ -151,16 +151,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   /**
    * Changing the password keeps the user signed in.
    *
-   * Verified against commit `6f56d9c`: `POST /auth/change-password` writes the
-   * hash and clears `must_change_password` in a single commit
-   * (`app/services/auth.py::change_password`), and returns a fresh `UserOut`. It
-   * revokes **nothing** — `revoke_all_for_user` exists in the repository but is
-   * called from nowhere — so the current access token and the current refresh
-   * token both stay valid afterwards. The endpoint's own docstring claims
-   * otherwise; do not trust it.
-   *
-   * So: re-read `/auth/me` to pick up the cleared flag, and leave the tokens
-   * alone. Forcing a re-login here would look like the change failed.
+   * The backend writes the replacement hash, clears `must_change_password`,
+   * and revokes every refresh token in the same transaction. The current access
+   * token remains valid only until its short expiry, so reload `/auth/me` to
+   * lift the forced-change gate without retaining a new long-lived credential.
    */
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     await changePasswordApi({

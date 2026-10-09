@@ -107,10 +107,20 @@ export default function ProfilePage() {
         <ChangePasswordForm />
       </Card>
 
-      {!isAdmin && !isChecking && !myChamas.some((chama) => chama.created_by_user_id === user.id) ? (
+      {!isAdmin && !isChecking && user.can_create_chama ? (
         <Card title="Create a Chama" className="mt-6">
           <CreateChamaForm />
         </Card>
+      ) : null}
+
+      {!isAdmin && !isChecking && !user.can_create_chama ? (
+        <Alert title="Chama creation is unavailable" className="mt-6">
+          <p>
+            Your registered phone number already belongs to a Chama member. To
+            create another Chama, sign out and register a separate account with
+            a phone number and government ID that are not already registered.
+          </p>
+        </Alert>
       ) : null}
     </div>
   );

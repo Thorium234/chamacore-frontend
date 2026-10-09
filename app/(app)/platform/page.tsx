@@ -18,6 +18,9 @@ import {
   listPlatformChamas,
   grantPlatformAdmin,
   revokePlatformAdmin,
+  requirePlatformUserPasswordChange,
+  searchPlatformUsers,
+  setPlatformUserActive,
   setPlatformChamaStatus,
 } from "@/lib/api/platform";
 import { invalidate } from "@/lib/query/cache";
@@ -43,6 +46,8 @@ function PlatformConsole() {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminNotice, setAdminNotice] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState("");
+  const [userNotice, setUserNotice] = useState<string | null>(null);
 
   const stats = useQuery("platform:stats", getPlatformStats);
   const chamaKey = `platform:chamas:${chamaSearch.trim()}:${statusFilter}:${chamaOffset}`;
@@ -57,6 +62,10 @@ function PlatformConsole() {
     { refetchInterval: 60_000 }
   );
   const admins = useQuery("platform:admins", listPlatformAdmins, { refetchInterval: 60_000 });
+  const users = useQuery(
+    userSearch.trim().length >= 2 ? `platform:users:${userSearch.trim()}` : null,
+    () => searchPlatformUsers(userSearch.trim())
+  );
   const allowedTargets = useMemo(
     () => statusTarget ? PLATFORM_STATUS_TRANSITIONS[statusTarget.status] : [],
     [statusTarget]
@@ -72,6 +81,12 @@ function PlatformConsole() {
   });
   const revokeMutation = useMutation(revokePlatformAdmin, {
     invalidates: ["platform:admins", "platform:stats"],
+  });
+  const passwordMutation = useMutation(requirePlatformUserPasswordChange, {
+    invalidates: ["platform:users"],
+  });
+  const activeMutation = useMutation(setPlatformUserActive, {
+    invalidates: ["platform:users", "platform:admins"],
   });
 
   function openStatusDialog(chama: PlatformChamaOut) {
@@ -118,23 +133,27 @@ function PlatformConsole() {
     invalidate("platform:chamas");
     invalidate("platform:admins");
     invalidate("platform:stats");
+    invalidate("platform:users");
   }
 
   return (
     <div>
       <PageHeader
         title="Platform administration"
-        description="Review Chama owners and activate their groups. Platform access is managed separately from Chama chairperson roles."
+        description="Manage tenants, accounts, and platform access. Chama financial operations remain with Chama roles."
       />
 
       {stats.error ? (
         <ErrorState message={stats.error.message} onRetry={stats.refetch} />
       ) : stats.data ? (
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Total Chamas</p><p className="mt-1 text-2xl font-semibold">{stats.data.total_chamas}</p></div>
           <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Active</p><p className="mt-1 text-2xl font-semibold">{stats.data.active_chamas}</p></div>
           <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Awaiting activation</p><p className="mt-1 text-2xl font-semibold">{stats.data.pending_chamas}</p></div>
           <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Suspended</p><p className="mt-1 text-2xl font-semibold">{stats.data.suspended_chamas}</p></div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Accounts</p><p className="mt-1 text-2xl font-semibold">{stats.data.total_users}</p></div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Members</p><p className="mt-1 text-2xl font-semibold">{stats.data.total_members}</p></div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"><p className="text-sm text-zinc-500">Platform admins</p><p className="mt-1 text-2xl font-semibold">{stats.data.platform_admins}</p></div>
         </div>
       ) : null}
 
@@ -153,10 +172,11 @@ function PlatformConsole() {
           </div>
           {rowError ? <Alert className="mb-4" title="Could not change status">{rowError}</Alert> : null}
           {chamas.error ? <ErrorState message={chamas.error.message} onRetry={chamas.refetch} /> : chamas.isLoading ? <TableSkeleton rows={5} cols={4} /> : (chamas.data?.length ?? 0) === 0 ? <EmptyState title="No Chamas match" description="Adjust the search or status filter." /> : (
-            <Table head={["Chama", "Owner", "Status", "Actions"]}>
+            <Table head={["Chama", "Owner", "Members", "Status", "Actions"]}>
               {(chamas.data ?? []).map((chama) => <tr key={chama.id}>
                 <Td><span className="font-medium">{chama.name}</span><span className="block text-xs text-zinc-400">Created {formatDate(chama.created_at)}</span></Td>
-                <Td><span className="font-medium">{chama.owner_name ?? "Account owner"}</span><span className="block text-xs text-zinc-500">{chama.owner_email}</span></Td>
+                <Td><span className="font-medium">{chama.owner_name ?? "Account owner"}</span><span className="block text-xs text-zinc-500">{chama.owner_email}</span>{chama.owner_phone ? <span className="block text-xs text-zinc-500">{chama.owner_phone}</span> : null}</Td>
+                <Td>{chama.active_member_count} active <span className="block text-xs text-zinc-500">{chama.membership_count} total</span></Td>
                 <Td><StatusBadge status={chama.status} /></Td>
                 <Td><Button size="sm" variant="secondary" onClick={() => openStatusDialog(chama)}>Change status</Button></Td>
               </tr>)}
@@ -172,6 +192,30 @@ function PlatformConsole() {
               <div className="flex gap-2"><Button size="sm" loading={statusMutation.isPending} disabled={!nextStatus} onClick={submitStatusChange}>Apply</Button><Button size="sm" variant="secondary" onClick={() => setStatusTarget(null)}>Cancel</Button></div>
             </div>}
           </div> : null}
+        </section>
+
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="font-semibold">Account support</h2>
+          <p className="mt-1 text-sm text-zinc-500">Find an account by email, phone number, or government ID. Government IDs are never shown in results.</p>
+          <div className="mt-4 max-w-xl"><Input label="Find account" value={userSearch} onChange={(event) => { setUserSearch(event.target.value); setUserNotice(null); }} placeholder="Enter at least two characters" /></div>
+          {userNotice ? <p className="mt-3 text-sm text-emerald-700" role="status">{userNotice}</p> : null}
+          {userSearch.trim().length >= 2 ? (
+            <div className="mt-4">
+              {users.error ? <ErrorState message={users.error.message} onRetry={users.refetch} /> : users.isLoading ? <TableSkeleton rows={3} cols={4} /> : !users.data?.length ? <EmptyState title="No matching accounts" description="Try email, phone number, or government ID." /> : (
+                <Table head={["Account", "Member identity", "Security", "Actions"]}>
+                  {users.data.map((account) => <tr key={account.id}>
+                    <Td><span className="font-medium">{account.email}</span><span className="block text-xs text-zinc-500">{account.is_active ? "Active" : "Login disabled"}</span></Td>
+                    <Td>{account.member_name ?? "No member record"}{account.member_phone ? <span className="block text-xs text-zinc-500">{account.member_phone}</span> : null}</Td>
+                    <Td>{account.must_change_password ? <Badge tone="amber">Password change required</Badge> : <Badge tone="green">Normal access</Badge>}</Td>
+                    <Td><div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="secondary" loading={passwordMutation.isPending} onClick={async () => { const result = await passwordMutation.mutate(account.id); if (result) setUserNotice(`Password change required for ${result.email}.`); }}>Require password change</Button>
+                      <Button size="sm" variant={account.is_active ? "danger" : "secondary"} loading={activeMutation.isPending} onClick={async () => { const result = await activeMutation.mutate(account.id, !account.is_active); if (result) setUserNotice(`${result.email} is now ${result.is_active ? "active" : "disabled"}.`); }}>{account.is_active ? "Disable login" : "Reactivate login"}</Button>
+                    </div></Td>
+                  </tr>)}
+                </Table>
+              )}
+            </div>
+          ) : null}
         </section>
 
         <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">

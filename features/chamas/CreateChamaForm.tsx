@@ -30,6 +30,13 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
     if (isPending) return;
     setError(null);
 
+    if (!user?.can_create_chama) {
+      setError(
+        "Your registered identity already belongs to a Chama member. Register a separate account with a different phone number and government ID to create another Chama."
+      );
+      return;
+    }
+
     if (!/^\d+(\.\d{1,2})?$/.test(registrationFee)) {
       setError("Registration fee must be an amount with up to two decimals.");
       return;
@@ -58,7 +65,7 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
       const apiError = toApiError(err);
       if (apiError.status === 409) {
         setError(
-          "A member with these identity details already exists, or you are already linked to another Chama."
+          "This account's registered identity already belongs to a Chama member. Register a separate account with a different phone number and government ID to create another Chama."
         );
       } else {
         setError(getErrorMessage(apiError));

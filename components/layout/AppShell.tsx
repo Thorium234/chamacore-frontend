@@ -82,7 +82,7 @@ function Onboarding({
             ? "Create a Chama to start tracking contributions, shares, and your ledger."
             : isPlatformAdmin
               ? "Use the dashboard for a platform overview or open Administration to manage Chamas."
-              : "Your account is already linked to a member record. Ask a Chama chairperson to add your membership."}
+              : "Your registered identity already belongs to a Chama member. To found another Chama, register a separate account with an unused phone number and government ID."}
         </p>
       </div>
 
@@ -290,7 +290,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             children
           ) : !activeChamaId ? (
             <Onboarding
-              canCreateChama={!isCheckingPlatformAdmin && !isAdmin}
+              canCreateChama={!isCheckingPlatformAdmin && !isAdmin && Boolean(user?.can_create_chama)}
               isPlatformAdmin={isAdmin}
             />
           ) : chamaError ? (

@@ -49,6 +49,8 @@ export interface UserOut {
   email: string;
   is_active: boolean;
   member_id: string | null;
+  /** True only until this identity joins its first Chama. */
+  can_create_chama: boolean;
   must_change_password: boolean;
   created_at: string;
 }
@@ -605,6 +607,9 @@ export interface PlatformChamaOut {
   created_by_user_id: string;
   owner_name: string | null;
   owner_email: string;
+  owner_phone: string | null;
+  membership_count: number;
+  active_member_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -613,6 +618,10 @@ export interface PlatformUserOut {
   id: string;
   email: string;
   is_active: boolean;
+  must_change_password: boolean;
+  member_id: string | null;
+  member_name: string | null;
+  member_phone: string | null;
   /** Always `[]` for non-admins; may contain `PLATFORM_ADMIN`. */
   platform_roles: PlatformRoleName[];
   created_at: string;
@@ -624,6 +633,8 @@ export interface PlatformStatsOut {
   pending_chamas: number;
   suspended_chamas: number;
   dissolved_chamas: number;
+  total_users: number;
+  total_members: number;
   platform_admins: number;
 }
 

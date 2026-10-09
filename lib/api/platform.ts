@@ -73,6 +73,33 @@ export async function listPlatformAdmins(): Promise<PlatformUserOut[]> {
   return data;
 }
 
+export async function searchPlatformUsers(search: string): Promise<PlatformUserOut[]> {
+  const { data } = await api.get<PlatformUserOut[]>("/platform/users", {
+    params: { search, limit: 50 },
+  });
+  return data;
+}
+
+export async function requirePlatformUserPasswordChange(
+  userId: string
+): Promise<PlatformUserOut> {
+  const { data } = await api.post<PlatformUserOut>(
+    `/platform/users/${userId}/require-password-change`
+  );
+  return data;
+}
+
+export async function setPlatformUserActive(
+  userId: string,
+  isActive: boolean
+): Promise<PlatformUserOut> {
+  const action = isActive ? "reactivate" : "deactivate";
+  const { data } = await api.post<PlatformUserOut>(
+    `/platform/users/${userId}/${action}`
+  );
+  return data;
+}
+
 export async function grantPlatformAdmin(email: string): Promise<PlatformUserOut> {
   const { data } = await api.post<PlatformUserOut>(
     "/platform/admins",

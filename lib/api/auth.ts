@@ -43,9 +43,9 @@ export async function linkMeToMember(payload: MemberLinkPayload): Promise<UserOu
 /**
  * `POST /auth/change-password` → `UserOut` (`app/api/v1/auth.py:123`).
  *
- * The backend clears `must_change_password` and returns the updated user. The
- * current access and refresh tokens remain usable; the session provider
- * re-reads `/auth/me` so the forced-change gate can lift immediately.
+ * The backend clears `must_change_password`, revokes all refresh tokens, and
+ * returns the updated user. The current access token remains usable until its
+ * short expiry, so the session provider re-reads `/auth/me` immediately.
  */
 export async function changePassword(payload: ChangePasswordPayload): Promise<UserOut> {
   const { data } = await api.post<UserOut>("/auth/change-password", payload);
