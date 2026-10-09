@@ -49,8 +49,6 @@ export interface UserOut {
   email: string;
   is_active: boolean;
   member_id: string | null;
-  /** True only until this identity joins its first Chama. */
-  can_create_chama: boolean;
   must_change_password: boolean;
   created_at: string;
 }

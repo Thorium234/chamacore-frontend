@@ -30,13 +30,6 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
     if (isPending) return;
     setError(null);
 
-    if (!user?.can_create_chama) {
-      setError(
-        "Your registered identity already belongs to a Chama member. Register a separate account with a different phone number and government ID to create another Chama."
-      );
-      return;
-    }
-
     if (!/^\d+(\.\d{1,2})?$/.test(registrationFee)) {
       setError("Registration fee must be an amount with up to two decimals.");
       return;
@@ -65,7 +58,7 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
       const apiError = toApiError(err);
       if (apiError.status === 409) {
         setError(
-          "This account's registered identity already belongs to a Chama member. Register a separate account with a different phone number and government ID to create another Chama."
+          "A member with these identity details is already in this Chama, or the submitted identity conflicts with an existing member."
         );
       } else {
         setError(getErrorMessage(apiError));
@@ -133,7 +126,7 @@ export function CreateChamaForm({ onCreated }: { onCreated?: (chama: ChamaOut) =
         />
       </fieldset> : (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Your account details will be used to create your owner and chairperson membership.
+          Your linked member identity will be added as the owner and chairperson of this Chama.
         </p>
       )}
 
