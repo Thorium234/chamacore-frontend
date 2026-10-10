@@ -12,6 +12,7 @@ import {
 
 import {
   changePassword as changePasswordApi,
+  deleteAccount as deleteAccountApi,
   getMe,
   linkMeToMember,
   login as loginApi,
@@ -19,6 +20,7 @@ import {
   registerUser,
 } from "@/lib/api/auth";
 import {
+  extendSession as extendSessionApi,
   setPasswordChangeRequiredHandler,
   setSessionExpiredHandler,
 } from "@/lib/api/client";
@@ -53,6 +55,8 @@ interface SessionContextValue {
   linkMember: (payload: MemberLinkPayload) => Promise<UserOut>;
   refreshSession: () => Promise<UserOut | null>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  extendSession: () => Promise<boolean>;
+  deleteAccount: (password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -123,7 +127,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    */
   const login = useCallback(async (identifier: string, password: string) => {
     const tokens: TokenOut = await loginApi(identifier, password);
-    setTokens({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
+    setTokens({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_in: tokens.expires_in,
+    });
     clearAll();
     // `GET /auth/me` rather than trusting `TokenOut.must_change_password`: the
     // profile is needed anyway, and it is the same field the gate reads.
@@ -165,6 +173,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setUser(me);
   }, []);
 
+  const extendSession = useCallback(async () => {
+    const ok = await extendSessionApi();
+    if (ok) {
+      const me = await getMe();
+      setUser(me);
+      return true;
+    }
+    return false;
+  }, []);
+
+  const deleteAccount = useCallback(async (password: string) => {
+    await deleteAccountApi(password);
+    clearSessionStorage();
+    clearAll();
+    setUser(null);
+    setStatus("unauthenticated");
+  }, []);
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
@@ -193,9 +219,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       linkMember,
       refreshSession,
       changePassword,
+      extendSession,
+      deleteAccount,
       logout,
     }),
-    [status, user, login, register, linkMember, refreshSession, changePassword, logout]
+    [status, user, login, register, linkMember, refreshSession, changePassword, extendSession, deleteAccount, logout]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

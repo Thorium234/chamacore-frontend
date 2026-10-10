@@ -18,6 +18,7 @@
 
 const ACCESS_TOKEN_KEY = "chamacore.access_token";
 const REFRESH_TOKEN_KEY = "chamacore.refresh_token";
+const EXPIRES_AT_KEY = "chamacore.expires_at";
 
 /**
  * Every browser-persisted key this app owns. Session-scoped keys (tokens, the
@@ -57,11 +58,24 @@ export function getRefreshToken(): string | null {
   return readTokens().refresh_token;
 }
 
-export function setTokens(tokens: { access_token: string; refresh_token: string }): void {
+export function getExpiresAt(): number | null {
+  const storage = safeLocalStorage();
+  if (!storage) return null;
+  const raw = storage.getItem(EXPIRES_AT_KEY);
+  return raw ? Number(raw) : null;
+}
+
+export function setTokens(tokens: {
+  access_token: string;
+  refresh_token: string;
+  expires_in?: number;
+}): void {
   const storage = safeLocalStorage();
   if (!storage) return;
   storage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
   storage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
+  const ttlSec = tokens.expires_in ?? 7200;
+  storage.setItem(EXPIRES_AT_KEY, String(Date.now() + ttlSec * 1000));
 }
 
 export function clearTokens(): void {
@@ -69,6 +83,7 @@ export function clearTokens(): void {
   if (!storage) return;
   storage.removeItem(ACCESS_TOKEN_KEY);
   storage.removeItem(REFRESH_TOKEN_KEY);
+  storage.removeItem(EXPIRES_AT_KEY);
 }
 
 /**

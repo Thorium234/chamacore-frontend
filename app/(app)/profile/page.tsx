@@ -10,6 +10,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Spinner } from "@/components/ui/States";
 import { MemberLinkForm } from "@/features/auth/MemberLinkForm";
 import { ChangePasswordForm } from "@/features/auth/ChangePasswordForm";
+import { DeleteAccountForm } from "@/features/auth/DeleteAccountForm";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
 import { usePlatformAdmin } from "@/features/platform/usePlatformAdmin";
 import { formatDate } from "@/lib/format";
@@ -112,6 +113,14 @@ export default function ProfilePage() {
           <CreateChamaForm />
         </Card>
       ) : null}
+
+      <Card
+        title="Danger Zone: Delete Account"
+        description="Permanently deactivate your account and revoke all sessions."
+        className="mt-6 border-red-200 dark:border-red-900/50"
+      >
+        <DeleteAccountForm />
+      </Card>
     </div>
   );
 }

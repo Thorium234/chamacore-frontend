@@ -51,3 +51,8 @@ export async function changePassword(payload: ChangePasswordPayload): Promise<Us
   const { data } = await api.post<UserOut>("/auth/change-password", payload);
   return data;
 }
+
+export async function deleteAccount(password: string): Promise<void> {
+  await api.post("/auth/delete-account", { password });
+}
+

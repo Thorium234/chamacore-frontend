@@ -17,13 +17,22 @@ import { useChama } from "@/features/chamas/ChamaContext";
 import { CreateChamaForm } from "@/features/chamas/CreateChamaForm";
 import { usePlatformAdmin } from "@/features/platform/usePlatformAdmin";
 import { invalidate } from "@/lib/query/cache";
+import { getExpiresAt } from "@/lib/auth/token-store";
 
 /**
  * Routes that are global to the account rather than scoped to an active Chama.
  * Without this, a platform admin who belongs to no Chama would be stuck on the
  * onboarding screen and could never reach the admin console.
  */
-const GLOBAL_ROUTES = ["/platform", "/dashboard", "/profile", "/change-password"];
+const GLOBAL_ROUTES = [
+  "/platform",
+  "/dashboard",
+  "/profile",
+  "/change-password",
+  "/terms",
+  "/privacy",
+  "/refunds",
+];
 
 function MenuIcon() {
   return (
@@ -126,7 +135,7 @@ function Onboarding({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { status, user, logout, refreshSession, mustChangePassword } = useSession();
+  const { status, user, logout, refreshSession, mustChangePassword, extendSession } = useSession();
   const { activeChamaId, activeChama, chamaError, clearActiveChama } = useChama();
   const { isAdmin, isChecking: isCheckingPlatformAdmin } = usePlatformAdmin();
   const router = useRouter();
@@ -134,10 +143,39 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isGlobalRoute = GLOBAL_ROUTES.some((route) => pathname.startsWith(route));
   const [navOpen, setNavOpen] = useState(false);
   const [refreshingSession, setRefreshingSession] = useState(false);
+  const [sessionSecondsRemaining, setSessionSecondsRemaining] = useState<number | null>(null);
+  const [isExtendingSession, setIsExtendingSession] = useState(false);
 
   function toggleNav() {
     setNavOpen((open) => !open);
   }
+
+  async function handleExtendSession() {
+    setIsExtendingSession(true);
+    try {
+      await extendSession();
+      setSessionSecondsRemaining(null);
+    } finally {
+      setIsExtendingSession(false);
+    }
+  }
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    function checkExpiry() {
+      const expiresAt = getExpiresAt();
+      if (!expiresAt) return;
+      const remainingSec = Math.floor((expiresAt - Date.now()) / 1000);
+      if (remainingSec <= 300 && remainingSec > 0) {
+        setSessionSecondsRemaining(remainingSec);
+      } else {
+        setSessionSecondsRemaining(null);
+      }
+    }
+    checkExpiry();
+    const interval = setInterval(checkExpiry, 10_000);
+    return () => clearInterval(interval);
+  }, [status]);
 
   useEffect(() => {
     if (!navOpen) return;
@@ -149,8 +187,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [navOpen]);
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-  }, [status, router]);
+    if (status === "unauthenticated") {
+      const returnParam = pathname && pathname !== "/login" ? `?returnUrl=${encodeURIComponent(pathname)}` : "";
+      router.replace(`/login${returnParam}`);
+    }
+  }, [status, router, pathname]);
 
   useEffect(() => {
     if (mustChangePassword && pathname !== "/change-password") {
@@ -245,6 +286,21 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
+      {sessionSecondsRemaining !== null ? (
+        <div className="sticky top-0 z-40 flex items-center justify-between gap-3 bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow-md sm:px-6">
+          <span>
+            Your session will expire in {Math.max(1, Math.ceil(sessionSecondsRemaining / 60))} minute(s).
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleExtendSession}
+            loading={isExtendingSession}
+          >
+            Stay signed in
+          </Button>
+        </div>
+      ) : null}
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -346,6 +402,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
         </main>
+        <footer className="mt-auto border-t border-zinc-200 px-6 py-4 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <span>&copy; {new Date().getFullYear()} ChamaCore.</span>
+            <a href="/terms" className="hover:underline">Terms of Service</a>
+            <a href="/privacy" className="hover:underline">Privacy Policy</a>
+            <a href="/refunds" className="hover:underline">Refund Policy</a>
+          </div>
+          <p className="mt-1 text-[11px] text-zinc-400">
+            Kenyan savings group financial management. Subject to Kenya Data Protection Act 2019.
+          </p>
+        </footer>
       </div>
     </div>
   );

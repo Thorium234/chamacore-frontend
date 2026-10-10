@@ -81,7 +81,11 @@ async function doRefresh(): Promise<boolean> {
     const { data } = await axios.post(`${API_BASE_URL}${API_PREFIX}/auth/refresh`, {
       refresh_token: refreshToken,
     });
-    setTokens({ access_token: data.access_token, refresh_token: data.refresh_token });
+    setTokens({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+    });
     return true;
   } catch {
     clearTokens();
@@ -90,13 +94,17 @@ async function doRefresh(): Promise<boolean> {
 }
 
 /** Single-flight refresh: many concurrent 401s share one refresh attempt. */
-function refreshAccessToken(): Promise<boolean> {
+export function extendSession(): Promise<boolean> {
   if (!refreshPromise) {
     refreshPromise = doRefresh().finally(() => {
       refreshPromise = null;
     });
   }
   return refreshPromise;
+}
+
+function refreshAccessToken(): Promise<boolean> {
+  return extendSession();
 }
 
 api.interceptors.response.use(

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import { useSession } from "@/features/auth/session";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,7 @@ import { toApiError, getErrorMessage } from "@/lib/api/errors";
 
 export function LoginForm() {
   const { login } = useSession();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "1";
   const passwordChanged = searchParams.get("password_changed") === "1";
@@ -31,6 +32,12 @@ export function LoginForm() {
       // (`app/services/auth.py::authenticate`), so the field name on the wire
       // is unchanged even though what it accepts has widened.
       await login(identifier.trim(), password);
+      const rawReturn = searchParams.get("returnUrl");
+      const safeReturn =
+        rawReturn && rawReturn.startsWith("/") && !rawReturn.startsWith("//")
+          ? rawReturn
+          : "/dashboard";
+      router.replace(safeReturn);
     } catch (err) {
       setError(getErrorMessage(toApiError(err)));
     } finally {
