@@ -341,78 +341,90 @@ export function AppShell({ children }: { children: ReactNode }) {
             <NavLinkList />
           </div>
         </aside>
-        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-          {isGlobalRoute ? (
-            children
-          ) : !activeChamaId ? (
-            <Onboarding
-              canCreateChama={!isCheckingPlatformAdmin && !isAdmin}
-              isPlatformAdmin={isAdmin}
-            />
-          ) : chamaError ? (
-            <div className="mx-auto mt-8 max-w-xl">
-              <Alert
-                title={
-                  isAccessDenied
-                    ? "Chama access was denied"
-                    : chamaErrorKind === "not_found"
-                      ? "This Chama is no longer available"
-                      : "Could not load this Chama"
-                }
-              >
-                {isAccessDenied ? (
-                  <p>
-                    You are not an active member of this Chama. If you just created
-                    it, your membership link may still be pending — refresh your
-                    session so your member identity reloads, then try again.
-                  </p>
-                ) : chamaErrorKind === "not_found" ? (
-                  <p>
-                    It may have been deleted, or your membership in it was removed.
-                  </p>
-                ) : (
-                  <p>{chamaError.message}</p>
-                )}
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">
+            {isGlobalRoute ? (
+              children
+            ) : !activeChamaId ? (
+              <Onboarding
+                canCreateChama={!isCheckingPlatformAdmin && !isAdmin}
+                isPlatformAdmin={isAdmin}
+              />
+            ) : chamaError ? (
+              <div className="mx-auto mt-8 max-w-xl">
+                <Alert
+                  title={
+                    isAccessDenied
+                      ? "Chama access was denied"
+                      : chamaErrorKind === "not_found"
+                        ? "This Chama is no longer available"
+                        : "Could not load this Chama"
+                  }
+                >
                   {isAccessDenied ? (
+                    <p>
+                      You are not an active member of this Chama. If you just created
+                      it, your membership link may still be pending — refresh your
+                      session so your member identity reloads, then try again.
+                    </p>
+                  ) : chamaErrorKind === "not_found" ? (
+                    <p>
+                      It may have been deleted, or your membership in it was removed.
+                    </p>
+                  ) : (
+                    <p>{chamaError.message}</p>
+                  )}
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    {isAccessDenied ? (
+                      <Button
+                        size="sm"
+                        onClick={handleRefreshSession}
+                        loading={refreshingSession}
+                      >
+                        Refresh session and retry
+                      </Button>
+                    ) : null}
                     <Button
                       size="sm"
-                      onClick={handleRefreshSession}
-                      loading={refreshingSession}
+                      variant="secondary"
+                      onClick={clearActiveChama}
+                      disabled={refreshingSession}
                     >
-                      Refresh session and retry
+                      Choose another Chama
                     </Button>
-                  ) : null}
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={clearActiveChama}
-                    disabled={refreshingSession}
-                  >
-                    Choose another Chama
-                  </Button>
-                </div>
-              </Alert>
+                  </div>
+                </Alert>
+              </div>
+            ) : activeChama ? (
+              children
+            ) : (
+              <div className="flex items-center justify-center">
+                <Spinner />
+              </div>
+            )}
+          </main>
+
+          <footer className="mt-auto w-full border-t border-zinc-200 bg-white p-6 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
+              <div className="flex flex-wrap items-center justify-center gap-4 md:justify-start">
+                <span>&copy; {new Date().getFullYear()} ChamaCore.</span>
+                <a href="/terms" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition">
+                  Terms of Service
+                </a>
+                <a href="/privacy" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition">
+                  Privacy Policy
+                </a>
+                <a href="/refunds" className="hover:text-zinc-900 dark:hover:text-zinc-200 transition">
+                  Refund Policy
+                </a>
+              </div>
+              <div className="max-w-md text-center text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-500 md:text-right">
+                Kenyan savings group financial management. Subject to Kenya Data Protection Act 2019.
+              </div>
             </div>
-          ) : activeChama ? (
-            children
-          ) : (
-            <div className="flex items-center justify-center">
-              <Spinner />
-            </div>
-          )}
-        </main>
-        <footer className="mt-auto border-t border-zinc-200 px-6 py-4 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <span>&copy; {new Date().getFullYear()} ChamaCore.</span>
-            <a href="/terms" className="hover:underline">Terms of Service</a>
-            <a href="/privacy" className="hover:underline">Privacy Policy</a>
-            <a href="/refunds" className="hover:underline">Refund Policy</a>
-          </div>
-          <p className="mt-1 text-[11px] text-zinc-400">
-            Kenyan savings group financial management. Subject to Kenya Data Protection Act 2019.
-          </p>
-        </footer>
+          </footer>
+        </div>
       </div>
     </div>
   );
