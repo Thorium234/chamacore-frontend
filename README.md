@@ -49,6 +49,7 @@ Open [http://localhost:3000](http://localhost:3000).
 |-------------------|--------------------------------|
 | `npm run dev`     | Start the dev server (Turbopack) |
 | `npm run build`   | Production build                |
+| `npm run start`   | Production starts                |
 | `npm run lint`    | ESLint                          |
 | `npx tsc --noEmit`| Type-check the codebase         |
 
