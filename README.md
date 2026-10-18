@@ -66,3 +66,4 @@ Open [http://localhost:3000](http://localhost:3000).
 
 See `docs/AGENTS.md`: the backend owns authz, money, and idempotency — the
 frontend never invents endpoints, payloads, statuses, or balances.
+production vercel link ` https://chamacore-frontend.vercel.app`
